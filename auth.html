@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Google'a bağlan</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>body{font:15px/1.5 -apple-system,system-ui,sans-serif;text-align:center;padding:40px 20px;color:#231A14;background:#FBF7F2}@media (prefers-color-scheme:dark){body{color:#F3EAE2;background:#1A1512}}</style></head>
+<body><p id="m">Google'a yönlendiriliyor…</p>
+<script>
+(function(){
+var CID="796510180096-h8uit3rtnb9lfthe97q8h0mtrq60nsck.apps.googleusercontent.com";
+var RED=location.origin+location.pathname;
+var h=new URLSearchParams(location.hash.slice(1)),q=new URLSearchParams(location.search);
+function send(o){var done=false;function go(){if(done)return;done=true;try{Office.context.ui.messageParent(JSON.stringify(o));}catch(e){document.getElementById("m").textContent="Bu pencereyi kapatabilirsin.";}}
+  if(window.Office&&Office.onReady)Office.onReady(go);else setTimeout(go,800);}
+if(h.get("access_token")){document.getElementById("m").textContent="Bağlandı ✓";send({token:h.get("access_token"),exp:Date.now()+(parseInt(h.get("expires_in")||"3600",10)-120)*1000});}
+else if(h.get("error")||q.get("error")){document.getElementById("m").textContent="Giriş yapılmadı.";send({error:h.get("error")||q.get("error")});}
+else{var p=new URLSearchParams({client_id:CID,redirect_uri:RED,response_type:"token",scope:"https://www.googleapis.com/auth/drive.readonly",include_granted_scopes:"true"});if(!q.get("r"))p.set("prompt","consent select_account");
+  location.replace("https://accounts.google.com/o/oauth2/v2/auth?"+p.toString());}
+})();
+</script></body></html>
