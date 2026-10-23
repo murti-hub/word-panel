@@ -5,13 +5,13 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>ca34b5e3-4afe-45b4-98ed-fe2f5cc7bae4</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.1.0</Version>
   <ProviderName>Yusuff</ProviderName>
   <DefaultLocale>tr-TR</DefaultLocale>
   <DisplayName DefaultValue="Alev"/>
   <Description DefaultValue="Yazdıkça kombo: cümle cümle ilerledikçe alev büyür, günlük hedef ve seri tutulur."/>
-  <IconUrl DefaultValue="https://murti-hub.github.io/word-panel/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://murti-hub.github.io/word-panel/assets/icon-64.png"/>
+  <IconUrl DefaultValue="https://murti-hub.github.io/word-panel/assets/tool-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://murti-hub.github.io/word-panel/assets/tool-64.png"/>
   <SupportUrl DefaultValue="https://murti-hub.github.io/word-panel/"/>
   <AppDomains>
     <AppDomain>https://murti-hub.github.io</AppDomain>
@@ -70,9 +70,9 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16" DefaultValue="https://murti-hub.github.io/word-panel/assets/icon-16.png"/>
-        <bt:Image id="Icon.32" DefaultValue="https://murti-hub.github.io/word-panel/assets/icon-32.png"/>
-        <bt:Image id="Icon.80" DefaultValue="https://murti-hub.github.io/word-panel/assets/icon-80.png"/>
+        <bt:Image id="Icon.16" DefaultValue="https://murti-hub.github.io/word-panel/assets/tool-16.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://murti-hub.github.io/word-panel/assets/tool-32.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://murti-hub.github.io/word-panel/assets/tool-80.png"/>
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Alev.Url" DefaultValue="https://murti-hub.github.io/word-panel/taskpane.html"/>
