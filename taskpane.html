@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="9";
+var ALEV_VER="10";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s9</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s10</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -370,16 +370,16 @@ var G=(function(){
   if(!tok&&localStorage.getItem("alev-gonce"))why("panel açılınca kayıtlı token yoktu");
   if(tok&&tok.t&&!ok())why("süresi doldu");
   /* sessiz yenileme: izin zaten verildiyse pencere açılıp kendiliğinden kapanır */
-  function renew(){if(renewing||!localStorage.getItem("alev-gonce"))return;if(Date.now()-lastTry<45000)return;status="☁ Bağlantı yenileniyor…";gbar();connect();}
+  function renew(){if(!window.Office||!Office.context||!Office.context.ui)return;if(renewing||!localStorage.getItem("alev-gonce"))return;if(Date.now()-lastTry<45000)return;status="☁ Bağlantı yenileniyor…";gbar();connect();}
   function soon(){return !tok||!tok.t||tok.exp-Date.now()<300000;}
   function poke(){if(soon())renew();}
   function save(){try{localStorage.setItem(TK,JSON.stringify(tok));}catch(e){}}
   function connect(up){
     if(renewing&&Date.now()-lastTry<45000)return;renewing=true;lastTry=Date.now();
-    if(!window.Office||!Office.context||!Office.context.ui){renewing=false;status="Google girişi bu görünümde açılamadı";gbar();return;}
+    if(!window.Office||!Office.context||!Office.context.ui){renewing=false;lastTry=0;status="Google girişi bu görünümde açılamadı";gbar();return;}
     var url=location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"auth.html"+(localStorage.getItem("alev-gonce")?"?r=1"+(up?"&up=1":""):"");
     Office.context.ui.displayDialogAsync(url,{height:65,width:35,promptBeforeOpen:false},function(res){
-      if(res.status!=="succeeded"){renewing=false;status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
+      if(res.status!=="succeeded"){renewing=false;lastTry=0;status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
       var d=res.value;
       d.addEventHandler(Office.EventType.DialogMessageReceived,function(a){var m={};try{m=JSON.parse(a.message);}catch(e){}
         try{d.close();}catch(e){}
@@ -414,8 +414,8 @@ var G=(function(){
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
-function show(v){UI.v=v;saveUI();if(v!=="alev")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
-$("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v);});
+function show(v,user){UI.v=v;saveUI();if(user&&v!=="alev")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
+$("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v,1);});
 document.addEventListener("click",function(e){var t=e.target;
   var ld=t.closest&&t.closest("[data-load]");if(ld){pick(ld.getAttribute("data-load"));return;}
   var tg=t.closest&&t.closest("[data-tog]");if(tg){tg.closest(".ph").classList.toggle("open");return;}
