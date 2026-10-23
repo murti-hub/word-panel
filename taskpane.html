@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="8";
+var ALEV_VER="9";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s8</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s9</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -363,20 +363,31 @@ var G=(function(){
   var CID="796510180096-h8uit3rtnb9lfthe97q8h0mtrq60nsck.apps.googleusercontent.com", TK="alev-gtoken", tok=null, seen={}, busy=false, lastAt=0, status="";
   try{tok=JSON.parse(localStorage.getItem(TK)||"null");}catch(e){}
   function ok(){return !!(tok&&tok.t&&tok.exp>Date.now());}
+  var WK="alev-gwhy",renewing=false,lastTry=0;
+  function why(r){try{localStorage.setItem(WK,JSON.stringify({r:r,at:Date.now(),got:tok&&tok.got||0}));}catch(e){}}
+  function whyTxt(){var w=null;try{w=JSON.parse(localStorage.getItem(WK)||"null");}catch(e){}if(!w)return "";var hm=function(t){return new Date(t).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});};
+    return "son düşüş "+hm(w.at)+" · "+w.r+(w.got?" · token "+Math.round((w.at-w.got)/60000)+" dk yaşadı":"");}
+  if(!tok&&localStorage.getItem("alev-gonce"))why("panel açılınca kayıtlı token yoktu");
+  if(tok&&tok.t&&!ok())why("süresi doldu");
+  /* sessiz yenileme: izin zaten verildiyse pencere açılıp kendiliğinden kapanır */
+  function renew(){if(renewing||!localStorage.getItem("alev-gonce"))return;if(Date.now()-lastTry<45000)return;status="☁ Bağlantı yenileniyor…";gbar();connect();}
+  function soon(){return !tok||!tok.t||tok.exp-Date.now()<300000;}
+  function poke(){if(soon())renew();}
   function save(){try{localStorage.setItem(TK,JSON.stringify(tok));}catch(e){}}
   function connect(up){
-    if(!window.Office||!Office.context||!Office.context.ui){status="Google girişi bu görünümde açılamadı";gbar();return;}
+    if(renewing&&Date.now()-lastTry<45000)return;renewing=true;lastTry=Date.now();
+    if(!window.Office||!Office.context||!Office.context.ui){renewing=false;status="Google girişi bu görünümde açılamadı";gbar();return;}
     var url=location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"auth.html"+(localStorage.getItem("alev-gonce")?"?r=1"+(up?"&up=1":""):"");
     Office.context.ui.displayDialogAsync(url,{height:65,width:35,promptBeforeOpen:false},function(res){
-      if(res.status!=="succeeded"){status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
+      if(res.status!=="succeeded"){renewing=false;status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
       var d=res.value;
       d.addEventHandler(Office.EventType.DialogMessageReceived,function(a){var m={};try{m=JSON.parse(a.message);}catch(e){}
         try{d.close();}catch(e){}
-        if(m.token){tok={t:m.token,scope:m.scope||"",exp:m.exp||Date.now()+3300000};save();try{localStorage.setItem("alev-gonce","1");}catch(e){}status="";sync(true);}else{status="Giriş yapılmadı"+(m.error?" ("+m.error+")":"");gbar();}});
-      d.addEventHandler(Office.EventType.DialogEventReceived,function(){gbar();});
+        renewing=false;if(m.token){tok={t:m.token,scope:m.scope||"",exp:m.exp||Date.now()+3300000,got:Date.now()};save();try{localStorage.setItem("alev-gonce","1");}catch(e){}status="";sync(true);}else{status="Giriş yapılmadı"+(m.error?" ("+m.error+")":"");gbar();}});
+      d.addEventHandler(Office.EventType.DialogEventReceived,function(){renewing=false;if(status==="☁ Bağlantı yenileniyor…")status="";gbar();});
     });
   }
-  function gget(url){return fetch(url,{headers:{Authorization:"Bearer "+tok.t}}).then(function(r){if(r.status===401||r.status===403){if(r.status===401){tok=null;save();}throw {code:r.status};}if(!r.ok)throw {code:r.status};return r;});}
+  function gget(url){return fetch(url,{headers:{Authorization:"Bearer "+tok.t}}).then(function(r){if(r.status===401||r.status===403){if(r.status===401){why("Google 401 dedi");tok=null;save();renew();}throw {code:r.status};}if(!r.ok)throw {code:r.status};return r;});}
   function pull(name){var q=encodeURIComponent("name = '"+name+"' and trashed = false");
     return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&orderBy=modifiedTime%20desc&pageSize=1&fields=files(id,modifiedTime)").then(function(r){return r.json();}).then(function(j){var f=j.files&&j.files[0];if(!f)return null;if(seen[name]===f.modifiedTime)return "same";
       return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();}).then(function(o){seen[name]=f.modifiedTime;return o;});});}
@@ -386,6 +397,9 @@ var G=(function(){
       .then(function(){busy=false;status="☁ Drive'a bağlı · son kontrol "+new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});gbar();if(got){if(UI.v==="baglam")renderB();if(UI.v==="dal")renderD();if(UI.v==="havuz")renderH();}},
             function(){busy=false;status="";gbar();});}
   setInterval(function(){if(UI.v!=="alev")sync(false);},300000);
+  /* panele dokununca / dönünce süresi bitmek üzereyse kendiliğinden yenile */
+  ["pointerdown","focusin"].forEach(function(ev){document.addEventListener(ev,function(){if(UI.v!=="alev")poke();},true);});
+  document.addEventListener("visibilitychange",function(){if(!document.hidden&&UI.v!=="alev")poke();});
   function canWrite(){return ok()&&/drive\.file/.test(tok.scope||"");}
   var BF=null;
   function bfolder(){if(BF)return Promise.resolve(BF);var q=encodeURIComponent("name = 'Bağlam' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
@@ -395,12 +409,12 @@ var G=(function(){
     return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{Authorization:"Bearer "+tok.t,"Content-Type":"multipart/related; boundary="+bd},body:body}).then(function(r){if(!r.ok)throw {code:r.status};return r.json();});});}
   var IMG={};
   function img(id){if(IMG[id])return IMG[id];IMG[id]=gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return URL.createObjectURL(b);});IMG[id].catch(function(){delete IMG[id];});return IMG[id];}
-  return {ok:ok,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
+  return {ok:ok,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
-  b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
+  b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
-function show(v){UI.v=v;saveUI();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
+function show(v){UI.v=v;saveUI();if(v!=="alev")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
 $("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v);});
 document.addEventListener("click",function(e){var t=e.target;
   var ld=t.closest&&t.closest("[data-load]");if(ld){pick(ld.getAttribute("data-load"));return;}
