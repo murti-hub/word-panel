@@ -155,7 +155,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   <div class="foot"><span id="st2">Bekleniyor…</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
-    <label>Kombo süresi <select id="win"><option value="60">60 sn</option><option value="90">90 sn</option><option value="120">2 dk</option><option value="180">3 dk</option></select></label>
+    <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
     <label>Bugünü sıfırla <button id="rst" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Sıfırla</button></label>
   </div>
 </div>
@@ -163,8 +163,9 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 <script>
 (function(){
 var $=function(id){return document.getElementById(id);};
-var KEY="alev-word-v1", S={days:{},goal:300,win:90,best:0};
+var KEY="alev-word-v1", S={days:{},goal:300,win:600,best:0};
 try{var o=JSON.parse(localStorage.getItem(KEY)||"null");if(o)S=Object.assign(S,o);}catch(e){}
+if(!S.winV2){if(S.win<120)S.win=600;S.winV2=1;}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function day(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 var combo=0,sessW=0,sessS=0,last=0,prev=null,lastMsgAt=0,running=false;
@@ -188,7 +189,7 @@ function paint(){
   var blue=combo>=20;$("c3a").setAttribute("stop-color",blue?"#E7F5FF":"#FFFFFF");$("c3b").setAttribute("stop-color",blue?"#74C0FC":"#FFF3BF");
   $("cn").textContent=combo?"x"+combo:"0";
   $("tb").style.width=(combo?left/(S.win*1000)*100:0)+"%";
-  $("tl").textContent=combo?"Kombo "+Math.ceil(left/1000)+" sn içinde yeni cümle bekliyor":"Her bitirdiğin cümle komboyu büyütür.";
+  $("tl").textContent=combo?"Kombo "+(function(x){var m=Math.floor(x/60),sec=x%60;return m?m+" dk "+(sec<10?"0":"")+sec+" sn":sec+" sn";})(Math.ceil(left/1000))+" içinde yeni cümle bekliyor":"Her bitirdiğin cümle komboyu büyütür.";
   $("sw").textContent=sessW;$("ss").textContent="kelime · "+sessS+" cümle";
   var t=S.days[day()]||0;$("tw").firstChild.nodeValue=t+" ";$("tg").textContent="/ "+S.goal;$("tbi").style.width=Math.min(100,t/S.goal*100)+"%";$("tbar").classList.toggle("done",t>=S.goal);
   var s=streak();$("st").textContent=s;$("sts").textContent=s?"gün üst üste hedef 🔥":"gün · hedefi tuttur, seri başlasın";
@@ -211,7 +212,7 @@ function poll(){
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
 $("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
-$("win").onchange=function(){S.win=parseInt(this.value,10)||90;save();paint();};
+$("win").onchange=function(){S.win=parseInt(this.value,10)||600;save();paint();};
 $("rst").onclick=function(){S.days[day()]=0;save();paint();};
 setInterval(paint,1000);paint();
 Office.onReady(function(info){
@@ -282,6 +283,8 @@ function nodeOf(P,id){return P.nodes.find(function(n){return n.id===id;});}
 function descIds(P,n){var out=[n.id];(n.k||[]).forEach(function(c){var x=nodeOf(P,c);if(x)out=out.concat(descIds(P,x));});return out;}
 function cite(a,y,extra){a=String(a||"").replace(/\bvd\.?$/,"et al.").replace(/\s+ve\s+/," & ");return"("+a+(y?", "+y:"")+(extra?", "+extra:"")+")";}
 function qCite(c){c=String(c||"").replace(/,\s*s\.\s*/,", p. ");return c?"("+c.replace(/\bvd\.?/,"et al.")+")":"";}
+var DH=[];
+function nav(id,pj){if(UI.node&&UI.node!==id){DH.push({n:UI.node,pj:UI.pj});if(DH.length>30)DH.shift();}if(pj)UI.pj=pj;UI.node=id;renderD();}
 function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");return;}
   var P=proj();UI.pj=P.id;var n=nodeOf(P,UI.node)||P.nodes[0];UI.node=n.id;saveUI();
   var ids=descIds(P,n),rows=P.rows.filter(function(r){return r.br.some(function(b){return ids.indexOf(b)>=0;});});
@@ -289,6 +292,8 @@ function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");retur
   if(A.projects.length>1)h+='<select class="sel" id="dpj">'+A.projects.map(function(p){return'<option value="'+esc(p.id)+'"'+(p.id===P.id?" selected":"")+'>'+esc(p.name)+'</option>';}).join("")+'</select>';
   h+='<div class="row"><select class="sel" id="dnode" style="margin:0;flex:1">'+P.nodes.map(function(x){return'<option value="'+esc(x.id)+'"'+(x.id===n.id?" selected":"")+'>'+"  ".repeat(x.d).replace(/ /g," ")+esc(x.t.length>70?x.t.slice(0,69)+"…":x.t)+'</option>';}).join("")+'</select><button class="btn" id="dfind" title="İmlecin bulunduğu başlığa göre dalı seç">📍</button></div>';
   if(msg)h+='<div class="hint" style="margin:0 0 6px">'+esc(msg)+'</div>';
+  var par=P.nodes.find(function(x){return (x.k||[]).indexOf(n.id)>=0;});
+  if(DH.length||par)h+='<div class="row" style="margin:2px 0 6px">'+(DH.length?'<button class="btn" data-back="1" title="Bir önceki baktığın dal">← Geri</button>':'')+(par?'<button class="btn" data-go="'+esc(par.id)+'" title="Bir üst dal" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↑ '+esc(par.t.length>28?par.t.slice(0,27)+"…":par.t)+'</button>':'')+'</div>';
   h+='<div class="path">'+esc(n.path)+'</div><div style="font:700 16px Georgia,serif">'+esc(n.t)+'</div>';
   if(n.note)h+='<div class="sec">Not</div><div class="note">'+esc(n.note)+'</div>';
   if(n.k&&n.k.length)h+='<div class="sec">Alt dallar</div><div class="kids">'+n.k.map(function(c){var x=nodeOf(P,c);return x?'<button data-go="'+esc(x.id)+'">'+esc(x.t.length>50?x.t.slice(0,49)+"…":x.t)+'</button>':'';}).join("")+'</div>';
@@ -307,7 +312,7 @@ function findHere(){var P=proj();if(!P||!window.Word)return;
   Word.run(function(ctx){var r=ctx.document.body.getRange("Start").expandTo(ctx.document.getSelection());var ps=r.paragraphs;ps.load("items/text,items/styleBuiltIn,items/style");return ctx.sync().then(function(){
     for(var i=ps.items.length-1;i>=0;i--){var p=ps.items[i],sb=String(p.styleBuiltIn||""),st=String(p.style||""),tx=String(p.text||"").trim();
       if(!tx)continue;var isH=/^Heading/i.test(sb)||/heading|başlık/i.test(st)||(/^\d+(\.\d+)+\.?\s+\S/.test(tx)&&tx.length<140);
-      if(isH){var n=matchHeading(P,tx);if(!n){for(var j=0;j<A.projects.length&&!n;j++){var Q=A.projects[j];if(Q===P)continue;var m=matchHeading(Q,tx);if(m){n=m;UI.pj=Q.id;}}}if(n){UI.node=n.id;renderD("📍 “"+tx.slice(0,60)+"” başlığına göre seçildi");}else renderD("📍 “"+tx.slice(0,60)+"” ağaçta bulunamadı; listeden seç");return;}}
+      if(isH){var pvN=UI.node,pvP=UI.pj;var n=matchHeading(P,tx);if(!n){for(var j=0;j<A.projects.length&&!n;j++){var Q=A.projects[j];if(Q===P)continue;var m=matchHeading(Q,tx);if(m){n=m;UI.pj=Q.id;}}}if(n){if(pvN&&pvN!==n.id)DH.push({n:pvN,pj:pvP});UI.node=n.id;renderD("📍 “"+tx.slice(0,60)+"” başlığına göre seçildi");}else renderD("📍 “"+tx.slice(0,60)+"” ağaçta bulunamadı; listeden seç");return;}}
     renderD("📍 İmlecin üstünde başlık bulunamadı");});}).catch(function(){renderD("Belge okunamadı");});}
 /* --- Havuz görünümü --- */
 var hq="",hdone=false;
@@ -359,7 +364,8 @@ document.addEventListener("click",function(e){var t=e.target;
   var c=t.closest&&t.closest("[data-cat]");if(c){UI.cat=c.getAttribute("data-cat");saveUI();renderB();return;}
   var ins=t.closest&&t.closest("[data-ins]");if(ins){insert(B.list[+ins.getAttribute("data-ins")].p,ins);return;}
   var cp=t.closest&&t.closest("[data-cp]");if(cp){var a=cp.getAttribute("data-cp").split(":");copy(B.list[+a[0]].ex[+a[1]].s,cp);return;}
-  var go=t.closest&&t.closest("[data-go]");if(go){UI.node=go.getAttribute("data-go");renderD();return;}
+  var go=t.closest&&t.closest("[data-go]");if(go){nav(go.getAttribute("data-go"));return;}
+  if(t.closest&&t.closest("[data-back]")){var b=DH.pop();if(b){if(b.pj)UI.pj=b.pj;UI.node=b.n;}renderD();return;}
   var qi=t.closest&&t.closest("[data-qi]");if(qi){var q=$("v-dal")._q[+qi.getAttribute("data-qi")];insert("“"+q.q+"” "+qCite(q.cite),qi);return;}
   var qc=t.closest&&t.closest("[data-qc]");if(qc){var q2=$("v-dal")._q[+qc.getAttribute("data-qc")];copy("“"+q2.q+"” "+qCite(q2.cite),qc);return;}
   var ci=t.closest&&t.closest("[data-ci]");if(ci){var r=$("v-dal")._r[+ci.getAttribute("data-ci")];insert(cite(r.a,r.y),ci);return;}
@@ -372,7 +378,7 @@ document.addEventListener("click",function(e){var t=e.target;
   var hc=t.closest&&t.closest("[data-hc]");if(hc){copy(H.items[+hc.getAttribute("data-hc")].t,hc);return;}
 });
 document.addEventListener("input",function(e){if(e.target.id==="bq"){bq=e.target.value;renderB();}if(e.target.id==="hq"){hq=e.target.value;renderH();}});
-document.addEventListener("change",function(e){if(e.target.id==="dpj"){UI.pj=e.target.value;UI.node="";renderD();}if(e.target.id==="dnode"){UI.node=e.target.value;renderD();}});
+document.addEventListener("change",function(e){if(e.target.id==="dpj"){UI.pj=e.target.value;UI.node="";renderD();}if(e.target.id==="dnode"){nav(e.target.value);}});
 show(UI.v||"alev");
 })();
 </script>
