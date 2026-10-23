@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Alev</title>
+<script>
+/* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
+var ALEV_VER="7";
+(function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
+  if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
+</script>
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 <style>
 :root{--bg:#FBF7F2;--paper:#FFFFFF;--ink:#231A14;--soft:#7A6A5E;--line:#EADFD3;--acc:#E8590C;--gold:#F59F00;--ok:#2F7D3A}
@@ -160,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s7</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
