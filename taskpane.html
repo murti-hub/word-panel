@@ -366,7 +366,7 @@ var G=(function(){
   var WK="alev-gwhy",renewing=false,lastTry=0;
   function why(r){try{localStorage.setItem(WK,JSON.stringify({r:r,at:Date.now(),got:tok&&tok.got||0}));}catch(e){}}
   function whyTxt(){var w=null;try{w=JSON.parse(localStorage.getItem(WK)||"null");}catch(e){}if(!w)return "";var hm=function(t){return new Date(t).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});};
-    return "son düşüş "+hm(w.at)+" · "+w.r+(w.got?" · token "+Math.round((w.at-w.got)/60000)+" dk yaşadı":"");}
+    return "son düşüş "+hm(w.at)+" · "+w.r+(w.got&&w.r!=="süresi doldu"?" · token "+Math.round((w.at-w.got)/60000)+" dk yaşadı":"");}
   if(!tok&&localStorage.getItem("alev-gonce"))why("panel açılınca kayıtlı token yoktu");
   if(tok&&tok.t&&!ok())why("süresi doldu");
   /* sessiz yenileme: izin zaten verildiyse pencere açılıp kendiliğinden kapanır */
