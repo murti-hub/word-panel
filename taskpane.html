@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="7";
+var ALEV_VER="8";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s7</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s8</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -295,6 +295,17 @@ function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");re
 function proj(){if(!A)return null;return A.projects.find(function(p){return p.id===UI.pj;})||A.projects.find(function(p){return p.id===A.cur;})||A.projects[0];}
 function nodeOf(P,id){return P.nodes.find(function(n){return n.id===id;});}
 function descIds(P,n){var out=[n.id];(n.k||[]).forEach(function(c){var x=nodeOf(P,c);if(x)out=out.concat(descIds(P,x));});return out;}
+function parseAPA(t){t=String(t||"").replace(/\s+/g," ").trim();var m=t.match(/^(.+?)\s*\((\d{4}[a-z]?|n\.d\.)[^)]*\)\.?\s*(.*)$/);if(!m)return null;
+  var au=m[1].trim(),y=m[2],rest=m[3];var tm=rest.match(/^(.+?[.?!])\s+(.*)$/),title=(tm?tm[1]:rest).replace(/\.$/,""),venue=tm?tm[2]:"";
+  var sur=[];au.replace(/(?:^|,\s*(?:&\s*)?|\s&\s)([^,&]+?),\s*(?:[A-ZÇĞİÖŞÜ][a-zçğıöşü]?\.\s*-?\s*)+/g,function(_,s){sur.push(s.trim());return _;});
+  if(!sur.length)sur=[au.split(",")[0].trim()];
+  var a=sur.length===1?sur[0]:sur.length===2?sur[0]+" ve "+sur[1]:sur[0]+" vd.";
+  var vn=venue.split(/,\s*\d|\.\s*https?:|\s+https?:/)[0].replace(/\.$/,"").trim();
+  var doi=(t.match(/10\.\d{4,9}\/[^\s]+/)||[""])[0].replace(/[.,]$/,"");
+  return {author:a,authors:au,year:y.replace(/\.$/,""),title:title,pub:vn,doi:doi,apa:t};}
+var PK="alev-pending";var PEND=[];try{PEND=JSON.parse(localStorage.getItem(PK)||"[]");}catch(e){}
+function savePend(){try{localStorage.setItem(PK,JSON.stringify(PEND));}catch(e){}}
+var apaOpen=false;
 function cite(a,y,extra){a=String(a||"").replace(/\bvd\.?$/,"et al.").replace(/\s+ve\s+/," & ");return"("+a+(y?", "+y:"")+(extra?", "+extra:"")+")";}
 function qCite(c){c=String(c||"").replace(/,\s*s\.\s*/,", p. ");return c?"("+c.replace(/\bvd\.?/,"et al.")+")":"";}
 var DH=[];
@@ -302,6 +313,8 @@ function nav(id,pj){if(UI.node&&UI.node!==id){DH.push({n:UI.node,pj:UI.pj});if(D
 function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");return;}
   var P=proj();UI.pj=P.id;var n=nodeOf(P,UI.node)||P.nodes[0];UI.node=n.id;saveUI();
   var ids=descIds(P,n),rows=P.rows.filter(function(r){return r.br.some(function(b){return ids.indexOf(b)>=0;});});
+  var have={};P.rows.forEach(function(r){if(r.z)have[r.z]=1;});PEND=PEND.filter(function(x){return !have[x.key]&&Date.now()-x.at<30*864e5;});savePend();
+  PEND.forEach(function(x){if(x.pj===P.id&&ids.indexOf(x.br)>=0)rows.push({a:x.author,y:x.year,t:x.title,venue:x.pub,cells:x.note?[{n:"Notun",v:x.note}]:[],pend:1});});
   var h='';
   if(A.projects.length>1)h+='<select class="sel" id="dpj">'+A.projects.map(function(p){return'<option value="'+esc(p.id)+'"'+(p.id===P.id?" selected":"")+'>'+esc(p.name)+'</option>';}).join("")+'</select>';
   h+='<div class="row"><select class="sel" id="dnode" style="margin:0;flex:1">'+P.nodes.map(function(x){return'<option value="'+esc(x.id)+'"'+(x.id===n.id?" selected":"")+'>'+"  ".repeat(x.d).replace(/ /g," ")+esc(x.t.length>70?x.t.slice(0,69)+"…":x.t)+'</option>';}).join("")+'</select><button class="btn" id="dfind" title="İmlecin bulunduğu başlığa göre dalı seç">📍</button></div>';
@@ -313,7 +326,9 @@ function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");retur
   if(n.k&&n.k.length)h+='<div class="sec">Alt dallar</div><div class="kids">'+n.k.map(function(c){var x=nodeOf(P,c);return x?'<button data-go="'+esc(x.id)+'">'+esc(x.t.length>50?x.t.slice(0,49)+"…":x.t)+'</button>':'';}).join("")+'</div>';
   var qs=[];ids.forEach(function(id){var x=nodeOf(P,id);if(x)x.q.forEach(function(q){qs.push(q);});});
   h+='<div class="sec">Alıntılar ('+qs.length+')</div>'+(qs.length?qs.map(function(q,i){return'<div class="qt"><p lang="en">“'+esc(q.q)+'”</p>'+(q.comment?'<div class="cell"><b>Notun</b>'+esc(q.comment)+'</div>':'')+'<div class="m"><span>'+esc(q.cite)+'</span><button class="ins" data-qi="'+i+'">＋ Ekle</button><button class="lk" data-qc="'+i+'">kopyala</button></div></div>';}).join(""):'<div class="hint" style="margin:0">Bu dala Zotero\'dan alıntı gönderilmemiş.</div>');
-  h+='<div class="sec">Literatür ('+rows.length+')</div>'+(rows.length?rows.map(function(r,i){return'<div class="ph" data-ri="'+i+'"><div class="h"><b data-tog="1" style="font-size:14px">'+esc(r.a)+(r.y?" ("+esc(r.y)+")":"")+'</b><button class="ins" data-ci="'+i+'" title="Atıf ekle">＋ Atıf</button></div><div class="fn" lang="en">'+esc(r.t)+(r.venue?' · <i>'+esc(r.venue)+'</i>':'')+'</div><div class="more">'+r.cells.map(function(c){return'<div class="cell"><b>'+esc(c.n)+'</b>'+esc(c.v)+'</div>';}).join("")+'</div></div>';}).join(""):'<div class="hint" style="margin:0">Bu dala bağlı makale yok.</div>');
+  h+='<div class="sec" style="display:flex;align-items:center;gap:6px"><span style="flex:1">Literatür ('+rows.length+')</span><button class="lk" data-apa="1">＋ APA kaynak ekle</button></div>';
+  if(apaOpen)h+='<div class="note" style="font-family:inherit;margin-bottom:8px"><textarea id="apaT" class="q" rows="4" placeholder="Google Scholar → Alıntı yap → APA metnini buraya yapıştır" style="font-size:12.5px;resize:vertical"></textarea><input id="apaN" class="q" style="margin-top:6px;font-size:12.5px" placeholder="Not (isteğe bağlı): hangi cümle için, neden önemli"><div id="apaP" class="hint" style="margin:6px 0"></div><div class="row" style="margin:0"><button class="btn pri" id="apaGo">Bu dala gönder</button><button class="btn" data-apa="1">Vazgeç</button></div></div>';
+  h+=''+(rows.length?rows.map(function(r,i){return'<div class="ph" data-ri="'+i+'"><div class="h"><b data-tog="1" style="font-size:14px">'+esc(r.a)+(r.y?" ("+esc(r.y)+")":"")+(r.pend?' <span style="font:600 11px -apple-system,system-ui,sans-serif;color:var(--soft)">⏳ Yazı ağacına gidiyor</span>':'')+'</b><button class="ins" data-ci="'+i+'" title="Atıf ekle">＋ Atıf</button></div><div class="fn" lang="en">'+esc(r.t)+(r.venue?' · <i>'+esc(r.venue)+'</i>':'')+'</div><div class="more">'+r.cells.map(function(c){return'<div class="cell"><b>'+esc(c.n)+'</b>'+esc(c.v)+'</div>';}).join("")+'</div></div>';}).join(""):'<div class="hint" style="margin:0">Bu dala bağlı makale yok.</div>');
   h+='<div class="hint">'+P.nodes.length+' dal · '+srcLine(A,"dal")+'</div>';
   el.innerHTML=h;el._q=qs;el._r=rows;
 }
@@ -349,15 +364,15 @@ var G=(function(){
   try{tok=JSON.parse(localStorage.getItem(TK)||"null");}catch(e){}
   function ok(){return !!(tok&&tok.t&&tok.exp>Date.now());}
   function save(){try{localStorage.setItem(TK,JSON.stringify(tok));}catch(e){}}
-  function connect(){
+  function connect(up){
     if(!window.Office||!Office.context||!Office.context.ui){status="Google girişi bu görünümde açılamadı";gbar();return;}
-    var url=location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"auth.html"+(localStorage.getItem("alev-gonce")?"?r=1":"");
+    var url=location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"auth.html"+(localStorage.getItem("alev-gonce")?"?r=1"+(up?"&up=1":""):"");
     Office.context.ui.displayDialogAsync(url,{height:65,width:35,promptBeforeOpen:false},function(res){
       if(res.status!=="succeeded"){status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
       var d=res.value;
       d.addEventHandler(Office.EventType.DialogMessageReceived,function(a){var m={};try{m=JSON.parse(a.message);}catch(e){}
         try{d.close();}catch(e){}
-        if(m.token){tok={t:m.token,exp:m.exp||Date.now()+3300000};save();try{localStorage.setItem("alev-gonce","1");}catch(e){}status="";sync(true);}else{status="Giriş yapılmadı"+(m.error?" ("+m.error+")":"");gbar();}});
+        if(m.token){tok={t:m.token,scope:m.scope||"",exp:m.exp||Date.now()+3300000};save();try{localStorage.setItem("alev-gonce","1");}catch(e){}status="";sync(true);}else{status="Giriş yapılmadı"+(m.error?" ("+m.error+")":"");gbar();}});
       d.addEventHandler(Office.EventType.DialogEventReceived,function(){gbar();});
     });
   }
@@ -371,9 +386,16 @@ var G=(function(){
       .then(function(){busy=false;status="☁ Drive'a bağlı · son kontrol "+new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});gbar();if(got){if(UI.v==="baglam")renderB();if(UI.v==="dal")renderD();if(UI.v==="havuz")renderH();}},
             function(){busy=false;status="";gbar();});}
   setInterval(function(){if(UI.v!=="alev")sync(false);},300000);
+  function canWrite(){return ok()&&/drive\.file/.test(tok.scope||"");}
+  var BF=null;
+  function bfolder(){if(BF)return Promise.resolve(BF);var q=encodeURIComponent("name = 'Bağlam' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&pageSize=1&fields=files(id)").then(function(r){return r.json();}).then(function(j){BF=(j.files&&j.files[0]&&j.files[0].id)||"";return BF;}).catch(function(){return "";});}
+  function upload(name,obj){return bfolder().then(function(f){var meta={name:name,mimeType:"application/json"};if(f)meta.parents=[f];var bd="alev"+Date.now();
+    var body="--"+bd+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)+"\r\n--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(obj)+"\r\n--"+bd+"--";
+    return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{Authorization:"Bearer "+tok.t,"Content-Type":"multipart/related; boundary="+bd},body:body}).then(function(r){if(!r.ok)throw {code:r.status};return r.json();});});}
   var IMG={};
   function img(id){if(IMG[id])return IMG[id];IMG[id]=gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return URL.createObjectURL(b);});IMG[id].catch(function(){delete IMG[id];});return IMG[id];}
-  return {ok:ok,connect:connect,sync:sync,img:img,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
+  return {ok:ok,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
@@ -392,6 +414,8 @@ document.addEventListener("click",function(e){var t=e.target;
   var qc=t.closest&&t.closest("[data-qc]");if(qc){var q2=$("v-dal")._q[+qc.getAttribute("data-qc")];copy("“"+q2.q+"” "+qCite(q2.cite),qc);return;}
   var ci=t.closest&&t.closest("[data-ci]");if(ci){var r=$("v-dal")._r[+ci.getAttribute("data-ci")];insert(cite(r.a,r.y),ci);return;}
   if(t.id==="dfind"){findHere();return;}
+  if(t.closest&&t.closest("[data-apa]")){apaOpen=!apaOpen;renderD();if(apaOpen)setTimeout(function(){var x=$("apaT");if(x)x.focus();},30);return;}
+  if(t.id==="apaGo"){sendAPA();return;}
   if(t.closest&&t.closest("[data-gconn]")){G.connect();return;}
   if(t.closest&&t.closest("[data-gsync]")){if(G.ok())G.sync(true);else G.connect();return;}
   var hd=t.closest&&t.closest("[data-hd]");if(hd){hdone=hd.getAttribute("data-hd")==="1";renderH();return;}
@@ -400,6 +424,17 @@ document.addEventListener("click",function(e){var t=e.target;
   var hi=t.closest&&t.closest("[data-hi]");if(hi){insert(H.items[+hi.getAttribute("data-hi")].t,hi);return;}
   var hc=t.closest&&t.closest("[data-hc]");if(hc){copy(H.items[+hc.getAttribute("data-hc")].t,hc);return;}
 });
+function apaPrev(){var o=parseAPA(($("apaT")||{}).value);var el=$("apaP");if(!el)return;el.innerHTML=o?"<b>"+esc(o.author)+" ("+esc(o.year)+")</b> · "+esc(o.title)+(o.pub?" · <i>"+esc(o.pub)+"</i>":"")+" → atıf: "+esc(cite(o.author,o.year)):($("apaT").value.trim()?"APA biçimi tanınmadı; yazar ve (yıl) ile başlamalı.":"");}
+function sendAPA(){var o=parseAPA(($("apaT")||{}).value);if(!o){apaPrev();return;}var P=proj(),n=nodeOf(P,UI.node);
+  if(!G.canWrite()){ $("apaP").innerHTML="Drive'a yazma izni gerekiyor. <button class='lk' id='apaUp'>Google'a yeniden bağlan</button> (bir kere)";return;}
+  var id=Date.now().toString(36)+Math.random().toString(36).slice(2,6),at=Date.now(),note=($("apaN")||{}).value||"";
+  var it={type:"lit",id:id,at:at,key:"word-"+id,author:o.author,authors:o.authors,year:o.year,title:o.title,pub:o.pub,doi:o.doi,apa:o.apa,note:note,pj:P.id,br:n.id,url:o.doi?"https://doi.org/"+o.doi:""};
+  var enc={};for(var k in it)enc[k]=typeof it[k]==="string"?encodeURIComponent(it[k]):it[k];
+  $("apaGo").disabled=true;$("apaP").textContent="Gönderiliyor…";
+  G.upload("agac-word-"+at+".json",{items:[enc]}).then(function(){PEND.push({key:it.key,pj:P.id,br:n.id,author:o.author,year:o.year,title:o.title,pub:o.pub,note:note,at:at});savePend();apaOpen=false;renderD("✓ Gönderildi. Yazı ağacını açınca literatüre ve bu dala eklenir; atfı şimdiden ekleyebilirsin.");},
+    function(e){$("apaGo").disabled=false;$("apaP").textContent="Gönderilemedi"+(e&&e.code?" ("+e.code+")":"")+"; tekrar dene.";});}
+document.addEventListener("input",function(e){if(e.target.id==="apaT")apaPrev();});
+document.addEventListener("click",function(e){if(e.target.id==="apaUp")G.connect(true);});
 document.addEventListener("input",function(e){if(e.target.id==="bq"){bq=e.target.value;renderB();}if(e.target.id==="hq"){hq=e.target.value;renderH();}});
 document.addEventListener("change",function(e){if(e.target.id==="dpj"){UI.pj=e.target.value;UI.node="";renderD();}if(e.target.id==="dnode"){nav(e.target.value);}});
 show(UI.v||"alev");
