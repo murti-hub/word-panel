@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="10";
+var ALEV_VER="11";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s10</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s11</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -387,15 +387,17 @@ var G=(function(){
       d.addEventHandler(Office.EventType.DialogEventReceived,function(){renewing=false;if(status==="☁ Bağlantı yenileniyor…")status="";gbar();});
     });
   }
-  function gget(url){return fetch(url,{headers:{Authorization:"Bearer "+tok.t}}).then(function(r){if(r.status===401||r.status===403){if(r.status===401){why("Google 401 dedi");tok=null;save();renew();}throw {code:r.status};}if(!r.ok)throw {code:r.status};return r;});}
+  function tfetch(url,o,ms){var c=window.AbortController?new AbortController():null,t=c&&setTimeout(function(){c.abort();},ms||20000);o=o||{};if(c)o.signal=c.signal;return fetch(url,o).then(function(r){return r;},function(e){clearTimeout(t);throw {code:"net",e:e};});}
+  function gget(url){return tfetch(url,{headers:{Authorization:"Bearer "+tok.t}}).then(function(r){if(r.status===401||r.status===403){if(r.status===401){why("Google 401 dedi");tok=null;save();renew();}throw {code:r.status};}if(!r.ok)throw {code:r.status};return r;});}
   function pull(name){var q=encodeURIComponent("name = '"+name+"' and trashed = false");
     return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&orderBy=modifiedTime%20desc&pageSize=1&fields=files(id,modifiedTime)").then(function(r){return r.json();}).then(function(j){var f=j.files&&j.files[0];if(!f)return null;if(seen[name]===f.modifiedTime)return "same";
       return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();}).then(function(o){seen[name]=f.modifiedTime;return o;});});}
-  function sync(force){if(!ok()||busy)return;if(!force&&Date.now()-lastAt<60000)return;busy=true;lastAt=Date.now();status="☁ Drive'dan kontrol ediliyor…";gbar();
+  var busyAt=0;
+  function sync(force){if(busy&&Date.now()-busyAt>45000)busy=false;if(!ok()||busy)return;busyAt=Date.now();if(!force&&Date.now()-lastAt<60000)return;busy=true;lastAt=Date.now();status="☁ Drive'dan kontrol ediliyor…";gbar();
     var names=["alev-baglam.json","alev-agac.json","alev-havuz.json"],got=0;
-    Promise.all(names.map(function(n){return pull(n).then(function(o){if(o&&o!=="same"&&take(o,"drive"))got++;},function(e){if(e&&e.code===401)throw e;});}))
+    Promise.all(names.map(function(n){return pull(n).then(function(o){if(o&&o!=="same"&&take(o,"drive"))got++;},function(e){if(e&&(e.code===401||e.code==="net"))throw e;});}))
       .then(function(){busy=false;status="☁ Drive'a bağlı · son kontrol "+new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});gbar();if(got){if(UI.v==="baglam")renderB();if(UI.v==="dal")renderD();if(UI.v==="havuz")renderH();}},
-            function(){busy=false;status="";gbar();});}
+            function(e){busy=false;status=e&&e.code==="net"?"☁ Drive'a ulaşılamadı · ↻ ile tekrar dene":"";gbar();});}
   setInterval(function(){if(UI.v!=="alev")sync(false);},300000);
   /* panele dokununca / dönünce süresi bitmek üzereyse kendiliğinden yenile */
   ["pointerdown","focusin"].forEach(function(ev){document.addEventListener(ev,function(){if(UI.v!=="alev")poke();},true);});
