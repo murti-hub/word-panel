@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="13";
+var ALEV_VER="14";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s13</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s14</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -364,14 +364,22 @@ function zinBox(n){if(ZC.legacy){var lh=norm(ZC.legacy.head||""),nh=norm(n.t),ln
     h+=r.chain.map(function(c,i){return'<div class="ph open" style="border-left:3px solid var(--acc,#e8622c);padding-left:8px"><div class="h"><b style="font-size:13.5px">'+(i+1)+'. '+esc(c.role||"Paragraf")+'</b></div><div class="fn" style="display:block">'+esc(c.focus||"")+'</div>'+
       ((c.points||[]).length?'<ul style="margin:4px 0 4px 16px;padding:0;font-size:12.5px">'+c.points.map(function(p){return'<li>'+esc(p)+'</li>';}).join("")+'</ul>':'')+
       ((c.sources||[]).length?'<div class="cell" style="font-size:12px"><b>Kaynak</b>'+c.sources.map(esc).join("<br>")+'</div>':'')+
-      (c.link&&i<r.chain.length-1?'<div class="hint" style="margin:2px 0 0">→ '+esc(c.link)+'</div>':'')+'</div>';}).join("");
-    if((r.gaps||[]).length)h+='<div class="sec">Eksikler</div><div class="note">'+r.gaps.map(esc).join("<br>")+'</div>';}
+      (c.link&&i<r.chain.length-1?'<div class="hint" style="margin:2px 0 0">→ '+esc(c.link)+'</div>':'')+'<div class="row" style="justify-content:flex-end;margin:2px 0 0"><button class="lk" data-zsk="'+i+'" title="Bu paragrafın iskeletini imlecin altına ekle">＋ Word\'e</button></div></div>';}).join("");
+    if((r.gaps||[]).length)h+='<div class="sec">Eksikler</div><div class="note">'+r.gaps.map(esc).join("<br>")+'</div>';
+    h+='<div class="note" style="font-family:inherit;margin-top:8px"><button class="btn pri" data-zsk="all" style="width:100%">¶ Taslak paragrafları Word\'e ekle ('+r.chain.length+')</button><div class="hint" style="margin:6px 0 0">İmlecin altına her paragraf için gri italik bir iskelet koyar: ne tartışacağın, alt noktalar, kaynak. Üstüne kendi cümlelerinle yazarsın.</div></div>';}
   return h;}
 function zText(){var P=proj(),r=ZC.by[zKey(nodeOf(P,UI.node))];if(!r)return"";var o=[r.head||""];if(r.aim)o.push(r.aim);o.push("");(r.chain||[]).forEach(function(c,i){o.push((i+1)+". "+(c.role||"")+": "+(c.focus||""));(c.points||[]).forEach(function(p){o.push("   - "+p);});if((c.sources||[]).length)o.push("   Kaynak: "+c.sources.join("; "));if(c.link)o.push("   → "+c.link);});if((r.gaps||[]).length){o.push("");o.push("Eksikler: "+r.gaps.join("; "));}return o.join("\n");}
 function zHere(){if(!window.Word)return;Word.run(function(ctx){var r=ctx.document.body.getRange("Start").expandTo(ctx.document.getSelection());var ps=r.paragraphs;ps.load("items/text,items/styleBuiltIn,items/style");return ctx.sync().then(function(){
   for(var i=ps.items.length-1;i>=0;i--){var p=ps.items[i],sb=String(p.styleBuiltIn||""),st=String(p.style||""),tx=String(p.text||"").trim();if(!tx)continue;
     if(/^Heading/i.test(sb)||/heading|başlık/i.test(st)||(/^\d+(\.\d+)*\.?\s+\S/.test(tx)&&tx.length<140)){ZC.draftH=tx;ZC.draftN=($("zN")||{}).value||"";renderD();return;}}
   ZC.err="İmlecin üstünde başlık bulunamadı";renderD();});}).catch(function(){});}
+function zSkel(which,btn){var P=proj(),r=ZC.by[zKey(nodeOf(P,UI.node))];if(!r||!window.Word)return;
+  var L=(which==="all"?r.chain.map(function(c,i){return [c,i];}):[[r.chain[+which],+which]]).filter(function(x){return x[0];});
+  var lines=L.map(function(x){var c=x[0],i=x[1];return "¶"+(i+1)+" · "+(c.role||"Paragraf")+" — "+(c.focus||"")+((c.points||[]).length?" Noktalar: "+c.points.join("; ")+".":"")+((c.sources||[]).length?" Kaynak: "+c.sources.map(function(s){return String(s).split(":")[0];}).join("; ")+".":"");});
+  Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getLast();
+    lines.forEach(function(t){p=p.insertParagraph(t,"After");p.styleBuiltIn=Word.Style?Word.Style.normal:"Normal";p.font.italic=true;p.font.color="#8A8A8A";});
+    return ctx.sync().then(function(){try{p.getRange("End").select();}catch(e){}return ctx.sync();});})
+  .then(function(){if(btn){var o=btn.textContent;btn.textContent="✓ eklendi";setTimeout(function(){btn.textContent=o;},1400);}},function(){if(btn){var o=btn.textContent;btn.textContent="eklenemedi";setTimeout(function(){btn.textContent=o;},1600);}});}
 var zT=null;
 function zSend(){var head=(($("zH")||{}).value||"").trim(),note=(($("zN")||{}).value||"").trim();ZC.draftH=head;ZC.draftN=note;
   if(!head){ZC.err="Başlık yaz";renderD();return;}
@@ -481,6 +489,7 @@ document.addEventListener("click",function(e){var t=e.target;
   if(t.id==="zGo"){zSend();return;}
   if(t.id==="zHere"){zHere();return;}
   if(t.id==="zCopy"){copy(zText(),t);return;}
+  var zk=t.closest&&t.closest("[data-zsk]");if(zk){zSkel(zk.getAttribute("data-zsk"),zk);return;}
   if(t.id==="zRetry"){zPoll(true);return;}
   if(t.closest&&t.closest("[data-gconn]")){G.connect();return;}
   if(t.closest&&t.closest("[data-gsync]")){if(G.ok())G.sync(true);else G.connect();return;}
