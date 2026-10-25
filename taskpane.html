@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="24";
+var ALEV_VER="25";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,8 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s24</span><button id="sb">Ayarlar</button></div>
+  <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s25</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -200,15 +201,26 @@ function bump(){var c=$("cn");c.classList.remove("pop");void c.offsetWidth;c.cla
 /* --- Ses: Web Audio ile üretilen özgün efektler + sistem sesiyle spiker --- */
 var AC=null;
 function ac(){try{if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();}if(AC.state==="suspended")AC.resume();}catch(e){return null;}return AC;}
-document.addEventListener("pointerdown",function(){ac();},{once:true});
+document.addEventListener("pointerdown",function(){ac();if(custom()&&CBUF===null)cbuf();sndHint();});
+function sndHint(){var e=$("sndh");if(!e)return;var c=AC;e.hidden=!(sm()&&(!c||c.state!=="running"));}
 function tone(f,t0,d,type,g){var c=ac();if(!c)return;var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
   var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
   o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
 function sm(){return S.snd==null?2:S.snd;}
 var CK="alev-snd-custom",CA=null;
-function custom(){if(CA!==null)return CA;try{var d=localStorage.getItem(CK);CA=d?new Audio(d):false;}catch(e){CA=false;}return CA;}
+var CBUF=null,CBUSY=false;
+function custom(){if(CA!==null)return CA;try{var d=localStorage.getItem(CK);CA=d?{url:d}:false;}catch(e){CA=false;}return CA;}
+/* Word panelinde (Safari motoru) <audio> yazarken çalmaya izin verilmiyor; sesi Web Audio'ya çözüp oradan çalıyoruz */
+function cbuf(){var a=custom(),c=ac();if(!a||!c||CBUF||CBUSY)return;CBUSY=true;
+  try{var b64=a.url.split(",")[1],bin=atob(b64),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    var done=function(buf){CBUF=buf;CBUSY=false;},fail=function(){CBUSY=false;CBUF=false;};
+    var pr=c.decodeAudioData(u.buffer,done,fail);if(pr&&pr.then)pr.then(done,fail);}catch(e){CBUSY=false;CBUF=false;}}
 function customWhen(n){var w=S.sndWhen||"m";return w==="all"||(w==="5"&&n%5===0)||(w==="10"&&n>=10&&n%10===0)||(w==="m"&&(MS[n]||(n>30&&n%10===0))&&n>1);}
-function playCustom(){var a=custom();if(!a)return false;try{a.pause();a.currentTime=0;a.volume=(S.vol==null?60:S.vol)/100;var p=a.play();if(p&&p.catch)p.catch(function(){});}catch(e){return false;}return true;}
+var CEL=null;
+function playCustom(){var a=custom();if(!a)return false;var c=ac();
+  if(c&&CBUF){try{var src=c.createBufferSource(),g=c.createGain();src.buffer=CBUF;g.gain.value=(S.vol==null?60:S.vol)/100;src.connect(g);g.connect(c.destination);src.start();return true;}catch(e){}}
+  if(CBUF===null)cbuf();
+  try{if(!CEL||CEL.src!==a.url){CEL=new Audio(a.url);}CEL.pause();CEL.currentTime=0;CEL.volume=(S.vol==null?60:S.vol)/100;var p=CEL.play();if(p&&p.catch)p.catch(function(){});}catch(e){return false;}return true;}
 function sfx(n){if(!sm())return;if(custom()&&customWhen(n)){playCustom();return;}var base=330*Math.pow(2,Math.min(n,24)/24);
   if(n>=10&&n%5===0){[0,4,7,12,16,19,24].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.06,0.22,"square",0.16);});tone(base*2,0.45,0.5,"sawtooth",0.12);tone(base*3,0.45,0.5,"triangle",0.12);}
   else if(MS[n]){[0,7,12].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.07,0.16,"square");});}
@@ -269,12 +281,12 @@ $("sndTry").onclick=function(){ac();if(custom()){playCustom();return;}var o=S.sn
 function sndUI(){var c=!!custom();$("sndDel").hidden=!c;$("sndWhenL").hidden=!c;$("sndPick").textContent=c?"Değiştir":"Dosya seç";$("sndWhen").value=S.sndWhen||"m";}
 $("sndPick").onclick=function(){$("sndFile").click();};
 $("sndFile").onchange=function(){var f=this.files&&this.files[0];if(!f)return;if(f.size>1500000){say("Ses dosyası çok büyük; 1-2 saniyelik kısa bir parça seç (en fazla 1,5 MB).");return;}
-  var r=new FileReader();r.onload=function(){try{localStorage.setItem(CK,r.result);CA=null;sndUI();ac();playCustom();say("Sesin eklendi 🔊");}catch(e){say("Ses kaydedilemedi, daha kısa bir dosya dene.");}};r.readAsDataURL(f);this.value="";};
-$("sndDel").onclick=function(){try{localStorage.removeItem(CK);}catch(e){}CA=null;sndUI();};
+  var r=new FileReader();r.onload=function(){try{localStorage.setItem(CK,r.result);CA=null;CBUF=null;cbuf();sndUI();ac();playCustom();say("Sesin eklendi 🔊");}catch(e){say("Ses kaydedilemedi, daha kısa bir dosya dene.");}};r.readAsDataURL(f);this.value="";};
+$("sndDel").onclick=function(){try{localStorage.removeItem(CK);}catch(e){}CA=null;CBUF=null;sndUI();};
 $("sndWhen").onchange=function(){S.sndWhen=this.value;save();};
 $("win").onchange=function(){S.win=parseInt(this.value,10)||600;save();paint();};
 $("rst").onclick=function(){S.days[day()]=0;save();paint();};
-setInterval(paint,1000);paint();
+setInterval(paint,1000);paint();setTimeout(sndHint,500);
 Office.onReady(function(info){
   if(info.host!==Office.HostType.Word){$("err").style.display="block";$("err").textContent="Bu panel Word içinde çalışır.";return;}
   if(!Office.context.requirements.isSetSupported("WordApi","1.3")){$("err").style.display="block";$("err").textContent="Word sürümün bu paneli desteklemiyor; Word'ü güncelle.";return;}
