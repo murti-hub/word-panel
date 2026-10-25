@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="27";
+var ALEV_VER="28";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,7 +167,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s27</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s28</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -387,6 +387,7 @@ function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");retur
   var par=P.nodes.find(function(x){return (x.k||[]).indexOf(n.id)>=0;});
   if(DH.length||par)h+='<div class="row" style="margin:2px 0 6px">'+(DH.length?'<button class="btn" data-back="1" title="Bir önceki baktığın dal">← Geri</button>':'')+(par?'<button class="btn" data-go="'+esc(par.id)+'" title="Bir üst dal" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↑ '+esc(par.t.length>28?par.t.slice(0,27)+"…":par.t)+'</button>':'')+'</div>';
   h+='<div class="path">'+esc(n.path)+'</div><div style="font:700 16px Georgia,serif">'+esc(n.t)+'</div>';
+  h+='<div class="row" style="margin:6px 0 2px;gap:6px"><button class="btn" id="wMark" title="İmlecin olduğu yere ⚠️ koy: sonra bakacağın yer (kaynak, argüman)">⚠️ İşaret koy</button><button class="btn" id="wPrev" title="Önceki ⚠️">↑</button><button class="btn" id="wNext" title="Sonraki ⚠️">↓ Sonraki ⚠️</button><span class="hint" id="wInfo" style="margin:0"></span></div>';
   h+=zinBox(n);
   if(n.note)h+='<div class="sec">Not</div><div class="note">'+esc(n.note)+'</div>';
   if(n.k&&n.k.length)h+='<div class="sec">Alt dallar</div><div class="kids">'+n.k.map(function(c){var x=nodeOf(P,c);return x?'<button data-go="'+esc(x.id)+'">'+esc(x.t.length>50?x.t.slice(0,49)+"…":x.t)+'</button>':'';}).join("")+'</div>';
@@ -463,6 +464,19 @@ function zPoll(manual){clearTimeout(zT);var w=ZC.wait;if(!w)return;if(manual){w.
     var zw=$("zWait");if(zw&&zw.firstChild)zw.firstChild.nodeValue="⏳ Yazı ağacı düşünüyor… "+Math.round((Date.now()-w.at)/1000)+" sn. Yazı ağacı bir sekmede açık olmalı.";zT=setTimeout(zPoll,8000);},function(){zT=setTimeout(zPoll,15000);});}
 if(ZC.wait)setTimeout(function(){zPoll();},3000);
 document.addEventListener("input",function(e){if(e.target.id==="zH")ZC.draftH=e.target.value;if(e.target.id==="zN")ZC.draftN=e.target.value;});
+/* --- ⚠️ işaretleri: yazarken fikir bölünmesin, sonra dönülecek yer --- */
+var WM="\u26A0\uFE0F";
+function wInfo(t){var e=$("wInfo");if(e)e.textContent=t||"";}
+function wMark(btn){if(!window.Word)return;Word.run(function(ctx){var sel=ctx.document.getSelection();var r=sel.insertText(WM,"End");r.font.highlightColor=null;var after=r.getRange("After");try{after.select();}catch(e){r.select("End");}return ctx.sync();})
+  .then(function(){wCount();if(btn){var o=btn.textContent;btn.textContent="✓ kondu";setTimeout(function(){btn.textContent=o;},900);}},function(){wInfo("Konamadı");});}
+function wCount(){if(!window.Word)return;Word.run(function(ctx){var rs=ctx.document.body.search("\u26A0",{matchCase:false});rs.load("items");return ctx.sync().then(function(){wInfo(rs.items.length?"Belgede "+rs.items.length+" işaret":"Belgede işaret yok");});}).catch(function(){});}
+function wGo(fwd){if(!window.Word)return;Word.run(function(ctx){var rs=ctx.document.body.search("\u26A0",{matchCase:false}),sel=ctx.document.getSelection();rs.load("items");
+  return ctx.sync().then(function(){if(!rs.items.length){wInfo("Belgede işaret yok");return;}
+    var cmp=rs.items.map(function(r){return r.compareLocationWith(sel);});return ctx.sync().then(function(){
+      var idx=-1;if(fwd){for(var i=0;i<cmp.length;i++){if(cmp[i].value==="After"||cmp[i].value==="AdjacentAfter"){idx=i;break;}}if(idx<0)idx=0;}
+      else{for(var j=cmp.length-1;j>=0;j--){if(cmp[j].value==="Before"||cmp[j].value==="AdjacentBefore"){idx=j;break;}}if(idx<0)idx=cmp.length-1;}
+      var p=rs.items[idx].paragraphs.getFirst();p.select();return ctx.sync().then(function(){rs.items[idx].select();return ctx.sync();}).then(function(){wInfo((idx+1)+" / "+rs.items.length+" işaret");});});});})
+  .catch(function(){wInfo("İşaretler aranamadı");});}
 /* --- Havuz görünümü --- */
 var hq="",hdone=false;
 function renderH(){var el=$("v-havuz");if(!H){el.innerHTML=loadBox("havuz");return;}
@@ -553,6 +567,8 @@ document.addEventListener("click",function(e){var t=e.target;
   var qc=t.closest&&t.closest("[data-qc]");if(qc){var q2=$("v-dal")._q[+qc.getAttribute("data-qc")];copy("“"+q2.q+"” "+qCite(q2.cite),qc);return;}
   var ci=t.closest&&t.closest("[data-ci]");if(ci){var r=$("v-dal")._r[+ci.getAttribute("data-ci")];insert(cite(r.a,r.y),ci);return;}
   if(t.id==="dfind"){findHere();return;}
+  if(t.id==="wMark"){wMark(t);return;}
+  if(t.id==="wNext"||t.id==="wPrev"){wGo(t.id==="wNext");return;}
   if(t.closest&&t.closest("[data-apa]")){apaOpen=!apaOpen;renderD();if(apaOpen)setTimeout(function(){var x=$("apaT");if(x)x.focus();},30);return;}
   if(t.id==="apaGo"){sendAPA();return;}
   if(t.closest&&t.closest("[data-zin]")){ZC.open=!ZC.open;renderD();return;}
