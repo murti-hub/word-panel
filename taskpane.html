@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="23";
+var ALEV_VER="24";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,12 +166,14 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s23</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s24</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
     <label>Ses <select id="snd"><option value="0">Kapalı</option><option value="1">Sadece efekt</option><option value="2">Efekt + spiker</option></select></label>
     <label>Ses düzeyi <input type="range" id="vol" min="0" max="100" step="5" style="width:110px"></label>
+    <label>Kendi sesin <span style="display:flex;gap:6px;align-items:center"><input type="file" id="sndFile" accept="audio/*" hidden><button id="sndPick" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Dosya seç</button><button id="sndDel" hidden style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Kaldır</button></span></label>
+    <label id="sndWhenL" hidden>Kendi sesin ne zaman <select id="sndWhen"><option value="m">Kombo aşamalarında</option><option value="5">Her 5 cümlede</option><option value="10">x10 ve üstü katlarda</option><option value="all">Her cümlede</option></select></label>
     <label>Dene <button id="sndTry" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">▶ x10</button></label>
     <label>Bugünü sıfırla <button id="rst" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Sıfırla</button></label>
   </div>
@@ -203,7 +205,11 @@ function tone(f,t0,d,type,g){var c=ac();if(!c)return;var o=c.createOscillator(),
   var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
   o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
 function sm(){return S.snd==null?2:S.snd;}
-function sfx(n){if(!sm())return;var base=330*Math.pow(2,Math.min(n,24)/24);
+var CK="alev-snd-custom",CA=null;
+function custom(){if(CA!==null)return CA;try{var d=localStorage.getItem(CK);CA=d?new Audio(d):false;}catch(e){CA=false;}return CA;}
+function customWhen(n){var w=S.sndWhen||"m";return w==="all"||(w==="5"&&n%5===0)||(w==="10"&&n>=10&&n%10===0)||(w==="m"&&(MS[n]||(n>30&&n%10===0))&&n>1);}
+function playCustom(){var a=custom();if(!a)return false;try{a.pause();a.currentTime=0;a.volume=(S.vol==null?60:S.vol)/100;var p=a.play();if(p&&p.catch)p.catch(function(){});}catch(e){return false;}return true;}
+function sfx(n){if(!sm())return;if(custom()&&customWhen(n)){playCustom();return;}var base=330*Math.pow(2,Math.min(n,24)/24);
   if(n>=10&&n%5===0){[0,4,7,12,16,19,24].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.06,0.22,"square",0.16);});tone(base*2,0.45,0.5,"sawtooth",0.12);tone(base*3,0.45,0.5,"triangle",0.12);}
   else if(MS[n]){[0,7,12].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.07,0.16,"square");});}
   else{tone(base*1.5,0,0.09,"triangle",0.2);tone(base*2,0.06,0.12,"triangle",0.2);}
@@ -255,11 +261,17 @@ function poll(){
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
-$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?2:S.snd);$("vol").value=String(S.vol==null?60:S.vol);};
+$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?2:S.snd);sndUI();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
 $("snd").onchange=function(){S.snd=parseInt(this.value,10)||0;save();ac();};
 $("vol").oninput=function(){S.vol=parseInt(this.value,10);save();};
-$("sndTry").onclick=function(){ac();var o=S.snd;if(!sm())S.snd=2;sfx(10);S.snd=o;};
+$("sndTry").onclick=function(){ac();if(custom()){playCustom();return;}var o=S.snd;if(!sm())S.snd=2;sfx(10);S.snd=o;};
+function sndUI(){var c=!!custom();$("sndDel").hidden=!c;$("sndWhenL").hidden=!c;$("sndPick").textContent=c?"Değiştir":"Dosya seç";$("sndWhen").value=S.sndWhen||"m";}
+$("sndPick").onclick=function(){$("sndFile").click();};
+$("sndFile").onchange=function(){var f=this.files&&this.files[0];if(!f)return;if(f.size>1500000){say("Ses dosyası çok büyük; 1-2 saniyelik kısa bir parça seç (en fazla 1,5 MB).");return;}
+  var r=new FileReader();r.onload=function(){try{localStorage.setItem(CK,r.result);CA=null;sndUI();ac();playCustom();say("Sesin eklendi 🔊");}catch(e){say("Ses kaydedilemedi, daha kısa bir dosya dene.");}};r.readAsDataURL(f);this.value="";};
+$("sndDel").onclick=function(){try{localStorage.removeItem(CK);}catch(e){}CA=null;sndUI();};
+$("sndWhen").onchange=function(){S.sndWhen=this.value;save();};
 $("win").onchange=function(){S.win=parseInt(this.value,10)||600;save();paint();};
 $("rst").onclick=function(){S.days[day()]=0;save();paint();};
 setInterval(paint,1000);paint();
