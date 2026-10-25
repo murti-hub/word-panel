@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="20";
+var ALEV_VER="21";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s20</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s21</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -225,9 +225,15 @@ function handle(text,pt){
   }
   prev={t:text,w:w,s:s,hi:hi};
 }
+var lastPoll=0,pollT=null;
+/* Word'ü yormamak için: yazarken değil, yazmaya ara verince (1,2 sn) bak */
+function soon(){clearTimeout(pollT);pollT=setTimeout(poll,1200);}
 function poll(){
   if(running)return;running=true;
-  Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getFirstOrNullObject();p.load("text");return ctx.sync().then(function(){if(p.isNullObject)return;var q=p.getPreviousOrNullObject();q.load("text");return ctx.sync().then(function(){handle(p.text,q.isNullObject?null:q.text);},function(){handle(p.text,null);});});})
+  lastPoll=Date.now();
+  Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getFirst(),q=p.getPreviousOrNullObject();p.load("text");q.load("text");
+      return ctx.sync().then(function(){handle(p.text,q.isNullObject?null:q.text);});})
+    .catch(function(){return Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getFirstOrNullObject();p.load("text");return ctx.sync().then(function(){if(!p.isNullObject)handle(p.text,null);});});})
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
@@ -239,7 +245,10 @@ setInterval(paint,1000);paint();
 Office.onReady(function(info){
   if(info.host!==Office.HostType.Word){$("err").style.display="block";$("err").textContent="Bu panel Word içinde çalışır.";return;}
   if(!Office.context.requirements.isSetSupported("WordApi","1.3")){$("err").style.display="block";$("err").textContent="Word sürümün bu paneli desteklemiyor; Word'ü güncelle.";return;}
-  poll();setInterval(poll,2000);docCount();setInterval(docCount,30000);
+  poll();var evOK=false;
+  try{Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged,soon,function(r){evOK=r.status==="succeeded";});}catch(e){}
+  setInterval(function(){if(document.hidden)return;if(!evOK||Date.now()-lastPoll>15000)poll();},evOK?15000:3000);
+  docCount();setInterval(function(){if(!document.hidden)docCount();},120000);
 });
 })();
 </script>
