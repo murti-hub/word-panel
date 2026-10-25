@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="22";
+var ALEV_VER="23";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,10 +166,13 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s22</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s23</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
+    <label>Ses <select id="snd"><option value="0">Kapalı</option><option value="1">Sadece efekt</option><option value="2">Efekt + spiker</option></select></label>
+    <label>Ses düzeyi <input type="range" id="vol" min="0" max="100" step="5" style="width:110px"></label>
+    <label>Dene <button id="sndTry" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">▶ x10</button></label>
     <label>Bugünü sıfırla <button id="rst" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Sıfırla</button></label>
   </div>
 </div>
@@ -177,7 +180,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 <script>
 (function(){
 var $=function(id){return document.getElementById(id);};
-var KEY="alev-word-v1", S={days:{},goal:300,win:600,best:0};
+var KEY="alev-word-v1", S={days:{},goal:300,win:600,best:0,snd:2,vol:60};
 try{var o=JSON.parse(localStorage.getItem(KEY)||"null");if(o)S=Object.assign(S,o);}catch(e){}
 if(!S.winV2){if(S.win<120)S.win=600;S.winV2=1;}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
@@ -192,9 +195,24 @@ var MS={1:"Başladın 🔥",3:"Isınıyorsun…",5:"5 cümle üst üste! İyi gi
 var SMALL=["Bir cümle daha ✓","Güzel","Devam","Akıyor","Tamam, sıradaki","İyi","Bir tane daha"];
 function say(t){var m=$("msg");m.textContent=t;m.classList.remove("flash");void m.offsetWidth;m.classList.add("flash");lastMsgAt=Date.now();}
 function bump(){var c=$("cn");c.classList.remove("pop");void c.offsetWidth;c.classList.add("pop");}
-function onSentence(){combo++;sessS++;bump();if(MS[combo])say(MS[combo]);else if(combo>30&&combo%10===0)say("x"+combo+"! İnanılmaz seri");else if(Date.now()-lastMsgAt>8000)say(SMALL[Math.floor(Math.random()*SMALL.length)]);if(combo>S.best){S.best=combo;save();}}
+/* --- Ses: Web Audio ile üretilen özgün efektler + sistem sesiyle spiker --- */
+var AC=null;
+function ac(){try{if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();}if(AC.state==="suspended")AC.resume();}catch(e){return null;}return AC;}
+document.addEventListener("pointerdown",function(){ac();},{once:true});
+function tone(f,t0,d,type,g){var c=ac();if(!c)return;var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
+  var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
+  o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
+function sm(){return S.snd==null?2:S.snd;}
+function sfx(n){if(!sm())return;var base=330*Math.pow(2,Math.min(n,24)/24);
+  if(n>=10&&n%5===0){[0,4,7,12,16,19,24].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.06,0.22,"square",0.16);});tone(base*2,0.45,0.5,"sawtooth",0.12);tone(base*3,0.45,0.5,"triangle",0.12);}
+  else if(MS[n]){[0,7,12].forEach(function(st,i){tone(base*Math.pow(2,st/12),i*0.07,0.16,"square");});}
+  else{tone(base*1.5,0,0.09,"triangle",0.2);tone(base*2,0.06,0.12,"triangle",0.2);}
+  if(sm()>=2&&(n>=3&&(MS[n]||n%5===0))&&window.speechSynthesis){try{var w=n>=20?"Ultra combo! "+n+" hits!":n>=10?n+" hit combo!":"Combo! "+n+"!";var u=new SpeechSynthesisUtterance(w);u.lang="en-US";u.rate=1.05;u.pitch=0.7;u.volume=(S.vol==null?60:S.vol)/100;
+    var vs=speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang);});var pick=vs.find(function(v){return /Daniel|Fred|Alex|Ralph|Arthur/i.test(v.name);})||vs[0];if(pick)u.voice=pick;speechSynthesis.cancel();setTimeout(function(){speechSynthesis.speak(u);},380);}catch(e){}}}
+function sfxEnd(n){if(!sm()||n<3)return;[12,7,3,0].forEach(function(st,i){tone(262*Math.pow(2,st/12),i*0.09,0.16,"triangle",0.15);});}
+function onSentence(){combo++;sfx(combo);sessS++;bump();if(MS[combo])say(MS[combo]);else if(combo>30&&combo%10===0)say("x"+combo+"! İnanılmaz seri");else if(Date.now()-lastMsgAt>8000)say(SMALL[Math.floor(Math.random()*SMALL.length)]);if(combo>S.best){S.best=combo;save();}}
 function onWords(n){sessW+=n;var k=day();var before=S.days[k]||0;S.days[k]=before+n;if(before<S.goal&&S.days[k]>=S.goal)say("Günlük hedef tamam! 🎉 "+S.goal+" kelime");save();}
-function endCombo(){if(combo>=3)say("Kombo bitti: x"+combo+(combo>=S.best?" · rekor!":"")+". Yeni cümleyle yeniden yak.");else if(combo>0)say("Alev söndü, bir cümleyle yeniden yak.");combo=0;}
+function endCombo(){sfxEnd(combo);if(combo>=3)say("Kombo bitti: x"+combo+(combo>=S.best?" · rekor!":"")+". Yeni cümleyle yeniden yak.");else if(combo>0)say("Alev söndü, bir cümleyle yeniden yak.");combo=0;}
 function paint(){
   var now=Date.now(),left=last?Math.max(0,S.win*1000-(now-last)):0;
   if(combo>0&&last&&left===0)endCombo();
@@ -237,8 +255,11 @@ function poll(){
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
-$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);};
+$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?2:S.snd);$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
+$("snd").onchange=function(){S.snd=parseInt(this.value,10)||0;save();ac();};
+$("vol").oninput=function(){S.vol=parseInt(this.value,10);save();};
+$("sndTry").onclick=function(){ac();var o=S.snd;if(!sm())S.snd=2;sfx(10);S.snd=o;};
 $("win").onchange=function(){S.win=parseInt(this.value,10)||600;save();paint();};
 $("rst").onclick=function(){S.days[day()]=0;save();paint();};
 setInterval(paint,1000);paint();
