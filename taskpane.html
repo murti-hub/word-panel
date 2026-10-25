@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="26";
+var ALEV_VER="27";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,7 +167,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s26</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s27</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -203,7 +203,7 @@ var AC=null;
 function ac(){try{if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();}if(AC.state==="suspended")AC.resume();}catch(e){return null;}return AC;}
 document.addEventListener("pointerdown",function(){ac();if(custom()&&CBUF===null)cbuf();sndHint();});
 function sndHint(){var e=$("sndh");if(!e)return;var c=AC;e.hidden=!(sm()&&(!c||c.state!=="running"));}
-function tone(f,t0,d,type,g){var c=ac();if(!c)return;var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
+function tone(f,t0,d,type,g){var c=ac();if(!c)return;if(c.state!=="running"){try{c.resume().then(function(){tone(f,t0,d,type,g);},function(){});}catch(e){}return;}var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
   var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
   o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
 function sm(){return S.snd==null?2:S.snd;}
@@ -218,6 +218,7 @@ function cbuf(){var a=custom(),c=ac();if(!a||!c||CBUF||CBUSY)return;CBUSY=true;
 function customWhen(n){var w=S.sndWhen||"m";return w==="all"||(w==="5"&&n%5===0)||(w==="10"&&n>=10&&n%10===0)||(w==="m"&&(MS[n]||(n>30&&n%10===0))&&n>1);}
 var CEL=null;
 function playCustom(){var a=custom();if(!a)return false;var c=ac();
+  if(c&&CBUF&&c.state!=="running"){try{c.resume().then(function(){playCustom();},function(){});return true;}catch(e){}}
   if(c&&CBUF){try{var src=c.createBufferSource(),g=c.createGain();src.buffer=CBUF;g.gain.value=(S.vol==null?60:S.vol)/100;src.connect(g);g.connect(c.destination);src.start();return true;}catch(e){}}
   if(CBUF===null)cbuf();
   try{if(!CEL||CEL.src!==a.url){CEL=new Audio(a.url);}CEL.pause();CEL.currentTime=0;CEL.volume=(S.vol==null?60:S.vol)/100;var p=CEL.play();if(p&&p.catch)p.catch(function(){});}catch(e){return false;}return true;}
@@ -234,6 +235,8 @@ function endCombo(){sfxEnd(combo);if(combo>=3)say("Kombo bitti: x"+combo+(combo>
 function paint(){
   var now=Date.now(),left=last?Math.max(0,S.win*1000-(now-last)):0;
   if(combo>0&&last&&left===0)endCombo();
+  var tbn=document.querySelector('#tabs [data-v="alev"]');if(tbn){var lbl=combo?"🔥 x"+combo:"🔥 Alev";if(tbn.textContent!==lbl)tbn.textContent=lbl;}
+  if(typeof UI!=="undefined"&&UI.v!=="alev"&&!paint.force)return; paint.force=false;
   var heat=combo?Math.min(1,0.25+combo/20):0;
   $("w").classList.toggle("cold",!combo);
   $("fl").style.transform="scale("+(0.55+heat*0.55).toFixed(3)+")";
@@ -246,6 +249,7 @@ function paint(){
   var s=streak();$("st").textContent=s;$("sts").textContent=s?"gün üst üste hedef 🔥":"gün · hedefi tuttur, seri başlasın";
   $("bc").textContent=S.best;
 }
+window.alevPaint=function(){paint.force=true;paint();};
 function handle(text,pt){
   var w=wc(text),s=sents(text),now=Date.now(),hi=s;
   function got(n){for(var i=0;i<Math.min(n,3);i++)onSentence();last=now;}
@@ -535,7 +539,7 @@ var G=(function(){
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
-function show(v,user){UI.v=v;saveUI();if(user&&v!=="alev")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
+function show(v,user){UI.v=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();gbar();if(v!=="alev")G.sync(false);}
 $("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v,1);});
 document.addEventListener("click",function(e){var t=e.target;
   var ld=t.closest&&t.closest("[data-load]");if(ld){pick(ld.getAttribute("data-load"));return;}
