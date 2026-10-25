@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="21";
+var ALEV_VER="22";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -166,7 +166,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
   </div>
   <div class="err" id="err"></div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s21</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s22</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -377,6 +377,7 @@ function zinBox(n){if(ZC.legacy){var lh=norm(ZC.legacy.head||""),nh=norm(n.t),ln
   h+='</div>';
   if(r&&r.chain&&!w){h+='<div class="sec" style="display:flex;align-items:center;gap:6px"><span style="flex:1">Zincir · <span lang="en">'+esc(r.head||"")+'</span>'+(function(){var n=Object.keys(r.done||{}).filter(function(k){return r.done[k];}).length;return n?' · <span style="color:#2b8a3e">'+n+'/'+r.chain.length+' ✓</span>':'';})()+'</span><button class="lk" id="zCopy">Kopyala</button></div>';
     if(r.aim)h+='<div class="note" style="font-style:italic">'+esc(r.aim)+'</div>';
+    if(r.why_n)h+='<div class="hint" style="margin:0 0 4px">¶ '+r.chain.length+' paragraf · '+esc(r.why_n)+'</div>';
     if(r.model)h+='<div class="hint" style="margin:0 0 6px">📐 Örnek alınan yapı: '+esc(r.model)+'</div>';
     else if(r.nex===0)h+='<div class="hint" style="margin:0 0 6px">İpucu: Zotero\'da beğendiğin makalelere sağ tık → “Zincir örneği olarak gönder” dersen zincirler onların yapısından öğrenir.</div>';
     var dn=r.done||{};h+=r.chain.map(function(c,i){var ok=!!dn[i];return'<div class="ph open" style="border-left:3px solid '+(ok?'var(--soft,#aaa)':'var(--acc,#e8622c)')+';padding-left:8px'+(ok?';opacity:.55':'')+'"><div class="h" style="display:flex;align-items:center;gap:8px"><input type="checkbox" data-zdone="'+i+'"'+(ok?' checked':'')+' title="Bu paragrafı yazdım" style="width:17px;height:17px;margin:0;accent-color:#2b8a3e;cursor:pointer;flex:none"><b style="font-size:13.5px;'+(ok?'text-decoration:line-through':'')+'">'+(i+1)+'. '+esc(c.role||"Paragraf")+'</b></div><div class="fn" style="display:block">'+esc(c.focus||"")+'</div>'+
