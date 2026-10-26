@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="31";
+var ALEV_VER="32";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,7 +167,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s31</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s32</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -204,13 +204,14 @@ var AC=null;
 /* Ses motoru boşta kalınca uyusun: Word'ün belleğini ve işlemcisini meşgul etmesin */
 var acIdle=null;function acSleep(){}
 function curView(){return window.__view||"alev";}
+var KEEP=null;function keepAlive(){try{if(KEEP||!AC||AC.state!=="running")return;var o=AC.createOscillator(),g=AC.createGain();g.gain.value=0.00001;o.frequency.value=30;o.connect(g);g.connect(AC.destination);o.start();KEEP=o;}catch(e){}}
 var SLOG={st:"",at:0,ok:null,why:""};function slog(ok,why){SLOG.at=Date.now();SLOG.ok=ok;SLOG.why=why||"";SLOG.st=AC?AC.state:"yok";var e=$("sndDbg");if(e)e.textContent=sdbg();}
 function sdbg(){if(!SLOG.at)return "Ses durumu: "+(AC?AC.state:"motor kapalı")+" · henüz çalmadı";return "Son ses "+new Date(SLOG.at).toLocaleTimeString("tr-TR")+" · "+(SLOG.ok?"çaldı ✓":"çalamadı ✗")+(SLOG.why?" ("+SLOG.why+")":"")+" · motor: "+SLOG.st+" · sekme: "+curView();}
 function ac(){try{if(!sm()&&!custom())return null;if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();}if(AC.state==="suspended")AC.resume();}catch(e){return null;}return AC;}
-document.addEventListener("pointerdown",function(){if(!AC||AC.state!=="running"){var c=ac();if(c)acSleep();}if(custom()&&CBUF===null)cbuf();sndHint();});
+document.addEventListener("pointerdown",function(){if(!AC||AC.state!=="running"){var c=ac();if(c){acSleep();try{c.resume().then(keepAlive,function(){});}catch(e){}}}else keepAlive();if(custom()&&CBUF===null)cbuf();sndHint();});
 var acOk=false;
 function sndHint(){var e=$("sndh");if(!e)return;if(AC&&AC.state==="running")acOk=true;e.hidden=!(sm()&&!acOk);}
-function tone(f,t0,d,type,g,again){var c=ac();if(!c){slog(false,"ses motoru yok");return;}if(c.state==="running")acOk=true;if(c.state!=="running"){if(again){slog(false,"motor "+c.state+"; panele bir dokun");return;}try{c.resume().then(function(){tone(f,t0,d,type,g,1);},function(e){slog(false,"uyandırılamadı");});}catch(e){slog(false,"uyandırılamadı");}return;}if(t0===0)slog(true);var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
+function tone(f,t0,d,type,g,again){var c=ac();if(!c){slog(false,"ses motoru yok");return;}if(c.state==="running"){acOk=true;keepAlive();}if(c.state!=="running"){if(again){slog(false,"motor "+c.state+"; panele bir dokun");return;}try{c.resume().then(function(){tone(f,t0,d,type,g,1);},function(e){slog(false,"uyandırılamadı");});}catch(e){slog(false,"uyandırılamadı");}return;}if(t0===0)slog(true);var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
   var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
   o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
 function sm(){return S.snd==null?2:S.snd;}
@@ -225,7 +226,8 @@ function cbuf(){var a=custom(),c=ac();if(!a||!c||CBUF||CBUSY)return;CBUSY=true;
 function customWhen(n){var w=S.sndWhen||"m";return w==="all"||(w==="5"&&n%5===0)||(w==="10"&&n>=10&&n%10===0)||(w==="m"&&(MS[n]||(n>30&&n%10===0))&&n>1);}
 var CEL=null;
 function playCustom(){var a=custom();if(!a)return false;var c=ac();
-  if(c&&CBUF&&c.state!=="running"){try{c.resume().then(function(){playCustom();},function(){});return true;}catch(e){}}
+  if(c&&CBUF&&c.state!=="running"){try{var tried=playCustom.tried;if(tried){playCustom.tried=0;slog(false,"motor "+c.state+"; Word sesi açtırmadı");return false;}playCustom.tried=1;c.resume().then(function(){playCustom();},function(){playCustom.tried=0;slog(false,"motor uyandırılamadı");});return true;}catch(e){}}
+  playCustom.tried=0;
   if(c&&CBUF){if(c.state==="running")slog(true,"kendi sesin");try{var src=c.createBufferSource(),g=c.createGain();src.buffer=CBUF;g.gain.value=(S.vol==null?60:S.vol)/100;src.connect(g);g.connect(c.destination);src.start();return true;}catch(e){}}
   if(CBUF===null)cbuf();
   try{if(!CEL){CEL=new Audio(a.url);CEL.addEventListener("ended",function(){try{CEL.removeAttribute("src");CEL.load();}catch(e){}CEL=null;});}CEL.volume=(S.vol==null?60:S.vol)/100;var p=CEL.play();if(p&&p.catch)p.catch(function(){});}catch(e){return false;}return true;}
