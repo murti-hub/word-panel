@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="33";
+var ALEV_VER="34";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,7 +167,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s33</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s34</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -516,21 +516,28 @@ var G=(function(){
   if(!tok&&localStorage.getItem("alev-gonce"))why("panel açılınca kayıtlı token yoktu");
   if(tok&&tok.t&&!ok())why("süresi doldu");
   /* sessiz yenileme: izin zaten verildiyse pencere açılıp kendiliğinden kapanır */
-  function renew(){if(!window.Office||!Office.context||!Office.context.ui)return;if(renewing||!localStorage.getItem("alev-gonce"))return;if(Date.now()-lastTry<45000)return;status="☁ Bağlantı yenileniyor…";gbar();connect();}
+  function renew(){if(!window.Office||!Office.context||!Office.context.ui)return;if(renewing||!localStorage.getItem("alev-gonce"))return;if(Date.now()-lastTry<45000)return;status="☁ Bağlantı yenileniyor…";gbar();connect(false,true);}
   function soon(){return !tok||!tok.t||tok.exp-Date.now()<300000;}
   function poke(){if(soon())renew();}
   function save(){try{localStorage.setItem(TK,JSON.stringify(tok));}catch(e){}}
-  function connect(up){
-    if(renewing&&Date.now()-lastTry<45000)return;renewing=true;lastTry=Date.now();
+  var DLG=null,DLT=null;
+  function closeDlg(){clearTimeout(DLT);if(DLG){try{DLG.close();}catch(e){}DLG=null;}}
+  function connect(up,auto,again){
+    if(!again&&auto&&renewing&&Date.now()-lastTry<45000)return;renewing=true;lastTry=Date.now();closeDlg();
     if(!window.Office||!Office.context||!Office.context.ui){renewing=false;lastTry=0;status="Google girişi bu görünümde açılamadı";gbar();return;}
     var url=location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"auth.html"+(localStorage.getItem("alev-gonce")?"?r=1"+(up?"&up=1":""):"");
     Office.context.ui.displayDialogAsync(url,{height:65,width:35,promptBeforeOpen:false},function(res){
-      if(res.status!=="succeeded"){renewing=false;lastTry=0;status="Giriş penceresi açılamadı ("+(res.error&&res.error.code)+")";gbar();return;}
-      var d=res.value;
+      if(res.status!=="succeeded"){var code=res.error&&res.error.code;
+        /* 12007: önceki pencere hâlâ açık sayılıyor; kapatıp bir kez daha dene */
+        if(code===12007&&!again){closeDlg();setTimeout(function(){connect(up,auto,true);},800);return;}
+        renewing=false;lastTry=0;status=code===12007?"Önceki Google penceresi açık kalmış; Word'de açık bir pencere varsa kapat, sonra tekrar bağlan":code===12009||code===12011?"Giriş penceresi engellendi; tekrar bağlan'a bas":"Giriş penceresi açılamadı ("+code+")";gbar();return;}
+      var d=res.value;DLG=d;
+      /* kendiliğinden yenilemede pencere 20 sn içinde cevap vermezse (ör. hesap seçtirmek istiyorsa) kapat ki sonraki denemeleri kilitlemesin */
+      if(auto)DLT=setTimeout(function(){closeDlg();renewing=false;status="Bağlantı kendiliğinden yenilenemedi; Google'a bağlan'a bas";tok=tok&&tok.exp>Date.now()?tok:null;gbar();},20000);
       d.addEventHandler(Office.EventType.DialogMessageReceived,function(a){var m={};try{m=JSON.parse(a.message);}catch(e){}
-        try{d.close();}catch(e){}
+        closeDlg();
         renewing=false;if(m.token){tok={t:m.token,scope:m.scope||"",exp:m.exp||Date.now()+3300000,got:Date.now()};save();try{localStorage.setItem("alev-gonce","1");}catch(e){}status="";sync(true);}else{status="Giriş yapılmadı"+(m.error?" ("+m.error+")":"");gbar();}});
-      d.addEventHandler(Office.EventType.DialogEventReceived,function(){renewing=false;if(status==="☁ Bağlantı yenileniyor…")status="";gbar();});
+      d.addEventHandler(Office.EventType.DialogEventReceived,function(){clearTimeout(DLT);DLG=null;renewing=false;if(status==="☁ Bağlantı yenileniyor…")status="";gbar();});
     });
   }
   function tfetch(url,o,ms){var c=window.AbortController?new AbortController():null,t=c&&setTimeout(function(){c.abort();},ms||20000);o=o||{};if(c)o.signal=c.signal;return fetch(url,o).then(function(r){return r;},function(e){clearTimeout(t);throw {code:"net",e:e};});}
