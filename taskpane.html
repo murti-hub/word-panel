@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="32";
+var ALEV_VER="33";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,11 +167,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s32</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s33</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
-    <label>Ses <select id="snd"><option value="0">Kapalı</option><option value="1">Sadece efekt</option><option value="2">Efekt + spiker</option></select></label>
+    <label>Ses <select id="snd"><option value="0">Kapalı</option><option value="1">Sadece efekt</option><option value="2">Efekt + spiker (daha çok bellek)</option></select></label>
     <label>Ses düzeyi <input type="range" id="vol" min="0" max="100" step="5" style="width:110px"></label>
     <label>Kendi sesin <span style="display:flex;gap:6px;align-items:center"><input type="file" id="sndFile" accept="audio/*" hidden><button id="sndPick" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Dosya seç</button><button id="sndDel" hidden style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Kaldır</button></span></label>
     <label id="sndWhenL" hidden>Kendi sesin ne zaman <select id="sndWhen"><option value="m">Kombo aşamalarında</option><option value="5">Her 5 cümlede</option><option value="10">x10 ve üstü katlarda</option><option value="all">Her cümlede</option></select></label>
@@ -214,7 +214,7 @@ function sndHint(){var e=$("sndh");if(!e)return;if(AC&&AC.state==="running")acOk
 function tone(f,t0,d,type,g,again){var c=ac();if(!c){slog(false,"ses motoru yok");return;}if(c.state==="running"){acOk=true;keepAlive();}if(c.state!=="running"){if(again){slog(false,"motor "+c.state+"; panele bir dokun");return;}try{c.resume().then(function(){tone(f,t0,d,type,g,1);},function(e){slog(false,"uyandırılamadı");});}catch(e){slog(false,"uyandırılamadı");}return;}if(t0===0)slog(true);var o=c.createOscillator(),v=c.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,c.currentTime+t0);
   var L=(S.vol==null?60:S.vol)/100*(g||0.18);v.gain.setValueAtTime(0.0001,c.currentTime+t0);v.gain.exponentialRampToValueAtTime(Math.max(L,0.0002),c.currentTime+t0+0.012);v.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t0+d);
   o.connect(v);v.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.02);}
-function sm(){return S.snd==null?2:S.snd;}
+function sm(){return S.snd==null?1:S.snd;}
 var CK="alev-snd-custom",CA=null;
 var CBUF=null,CBUSY=false;
 function custom(){if(CA!==null)return CA;try{var d=localStorage.getItem(CK);CA=d?{url:d}:false;}catch(e){CA=false;}return CA;}
@@ -286,7 +286,7 @@ function poll(){
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
-$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?2:S.snd);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
+$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
 $("snd").onchange=function(){S.snd=parseInt(this.value,10)||0;save();ac();};
 $("vol").oninput=function(){S.vol=parseInt(this.value,10);save();};
@@ -496,11 +496,14 @@ function renderH(){var el=$("v-havuz");if(!H){el.innerHTML=loadBox("havuz");retu
   $("hhint").innerHTML=H.items.length+" fikir · "+srcLine(H,"havuz");
   thumbs();
 }
-function thumbs(){Array.prototype.forEach.call(document.querySelectorAll("#hlist img[data-gid]:not([src])"),function(im){var id=im.getAttribute("data-gid");
+var TIO=null;
+function thumbs(){if(window.IntersectionObserver){if(!TIO)TIO=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){TIO.unobserve(e.target);thumb1(e.target);}});},{rootMargin:"300px"});Array.prototype.forEach.call(document.querySelectorAll("#hlist img[data-gid]:not([src])"),function(im){TIO.observe(im);});return;}
+  Array.prototype.forEach.call(document.querySelectorAll("#hlist img[data-gid]:not([src])"),thumb1);}
+function thumb1(im){var id=im.getAttribute("data-gid");if(im.src)return;
   if(!G.ok()){im.replaceWith(Object.assign(document.createElement("span"),{className:"thx",textContent:"📷 Google'a bağlanınca görünür"}));return;}
-  G.img(id).then(function(u){im.src=u;},function(){im.replaceWith(Object.assign(document.createElement("span"),{className:"thx",textContent:"📷 yüklenemedi"}));});});}
-function lbox(src){var d=$("lb");if(!d){d=document.createElement("div");d.id="lb";d.innerHTML='<img alt=""><button aria-label="Kapat">×</button>';document.body.appendChild(d);d.addEventListener("click",function(){d.classList.remove("on");});}d.querySelector("img").src=src;d.classList.add("on");}
-document.addEventListener("keydown",function(e){if(e.key==="Escape"&&$("lb"))$("lb").classList.remove("on");});
+  G.img(id).then(function(u){im.src=u;},function(){im.replaceWith(Object.assign(document.createElement("span"),{className:"thx",textContent:"📷 yüklenemedi"}));});}
+function lbox(src){var d=$("lb");if(!d){d=document.createElement("div");d.id="lb";d.innerHTML='<img alt=""><button aria-label="Kapat">×</button>';document.body.appendChild(d);d.addEventListener("click",function(){d.classList.remove("on");d.querySelector("img").removeAttribute("src");G.dropFull();});}d.querySelector("img").src=src;d.classList.add("on");}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&$("lb")){$("lb").classList.remove("on");$("lb").querySelector("img").removeAttribute("src");G.dropFull();}});
 /* --- Google Drive bağlantısı --- */
 var G=(function(){
   var CID="796510180096-h8uit3rtnb9lfthe97q8h0mtrq60nsck.apps.googleusercontent.com", TK="alev-gtoken", tok=null, seen={}, seenAt={}, busy=false, lastAt=0, status="";
@@ -555,9 +558,13 @@ var G=(function(){
     var body="--"+bd+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)+"\r\n--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(obj)+"\r\n--"+bd+"--";
     return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{Authorization:"Bearer "+tok.t,"Content-Type":"multipart/related; boundary="+bd},body:body}).then(function(r){if(!r.ok)throw {code:r.status};return r.json();});});}
   var IMG={};
-  function img(id){if(IMG[id])return IMG[id];IMG[id]=gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return URL.createObjectURL(b);});IMG[id].catch(function(){delete IMG[id];});return IMG[id];}
+  /* küçük resim: fotoğrafı 480 piksele küçültüp sakla, büyük hali bellekte tutma */
+  function shrink(b,w){return new Promise(function(res){var u=URL.createObjectURL(b),im=new Image();im.onload=function(){try{var k=Math.min(1,w/(im.naturalWidth||w)),c=document.createElement("canvas");c.width=Math.round((im.naturalWidth||w)*k);c.height=Math.round((im.naturalHeight||w)*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);im.src="";c.toBlob(function(sb){c.width=c.height=0;res(sb?URL.createObjectURL(sb):URL.createObjectURL(b));},"image/jpeg",0.82);}catch(e){res(u);}};im.onerror=function(){res(u);};im.src=u;});}
+  function img(id){if(IMG[id])return IMG[id];IMG[id]=gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return shrink(b,480);});IMG[id].catch(function(){delete IMG[id];});return IMG[id];}
+  var FULL=null;function full(id){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}return gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return shrink(b,1600);}).then(function(u){FULL=u;return u;});}
+  function dropFull(){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}}
   function getf(name){var q=encodeURIComponent("name = '"+name+"' and trashed = false");return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&pageSize=1&fields=files(id)").then(function(r){return r.json();}).then(function(j){var f=j.files&&j.files[0];if(!f)return null;return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();});});}
-  return {ok:ok,get:getf,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
+  return {ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
@@ -591,7 +598,7 @@ document.addEventListener("click",function(e){var t=e.target;
   if(t.closest&&t.closest("[data-gsync]")){if(G.ok())G.sync(true);else G.connect();return;}
   var hd=t.closest&&t.closest("[data-hd]");if(hd){hdone=hd.getAttribute("data-hd")==="1";renderH();return;}
   var ht=t.closest&&t.closest("[data-ht]");if(ht){ht.closest(".hv").classList.toggle("open");return;}
-  if(t.tagName==="IMG"&&t.getAttribute("data-gid")&&t.src){lbox(t.src);return;}
+  if(t.tagName==="IMG"&&t.getAttribute("data-gid")&&t.src){var gid=t.getAttribute("data-gid");lbox(t.src);G.full(gid).then(function(u){var L=$("lb");if(L&&L.classList.contains("on"))L.querySelector("img").src=u;},function(){});return;}
   var hi=t.closest&&t.closest("[data-hi]");if(hi){insert(H.items[+hi.getAttribute("data-hi")].t,hi);return;}
   var hc=t.closest&&t.closest("[data-hc]");if(hc){copy(H.items[+hc.getAttribute("data-hc")].t,hc);return;}
 });
