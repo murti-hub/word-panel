@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="36";
+var ALEV_VER="37";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -167,10 +167,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s36</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s37</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
+    <label>Kombo sayacı <select id="cmb"><option value="1">Açık</option><option value="0">Kapalı (Word'e hiç soru sormaz)</option></select></label>
     <label>Ses <select id="snd"><option value="0">Kapalı</option><option value="1">Sadece efekt</option><option value="2">Efekt + spiker (daha çok bellek)</option></select></label>
     <label>Ses düzeyi <input type="range" id="vol" min="0" max="100" step="5" style="width:110px"></label>
     <label>Kendi sesin <span style="display:flex;gap:6px;align-items:center"><input type="file" id="sndFile" accept="audio/*" hidden><button id="sndPick" style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Dosya seç</button><button id="sndDel" hidden style="border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:3px 8px">Kaldır</button></span></label>
@@ -276,9 +277,11 @@ function handle(text,pt){
 }
 var lastPoll=0,pollT=null;
 /* Word'ü yormamak için: yazarken değil, yazmaya ara verince (1,2 sn) bak */
-function soon(){clearTimeout(pollT);pollT=setTimeout(poll,1200);}
+/* Word'e en fazla 3 sn'de bir sor; kombo kapalıysa hiç sorma */
+function cmbOn(){return S.cmb!==0;}
+function soon(){if(!cmbOn())return;clearTimeout(pollT);var wait=Math.max(1500,3000-(Date.now()-lastPoll));pollT=setTimeout(poll,wait);}
 function poll(){
-  if(running)return;running=true;
+  if(!cmbOn())return;if(running)return;running=true;
   lastPoll=Date.now();
   Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getFirst(),q=p.getPreviousOrNullObject();p.load("text");q.load("text");
       return ctx.sync().then(function(){handle(p.text,q.isNullObject?null:q.text);});})
@@ -286,8 +289,9 @@ function poll(){
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
-$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
+$("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);$("cmb").value=String(cmbOn()?1:0);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
+$("cmb").onchange=function(){S.cmb=parseInt(this.value,10);save();if(!cmbOn()){combo=0;paint();$("st2").textContent="Kombo sayacı kapalı · Word'e soru sorulmuyor";}else{poll();}};
 $("snd").onchange=function(){S.snd=parseInt(this.value,10)||0;save();ac();};
 $("vol").oninput=function(){S.vol=parseInt(this.value,10);save();};
 $("sndTry").onclick=function(){ac();if(custom()){playCustom();return;}var o=S.snd;if(!sm())S.snd=2;sfx(10);S.snd=o;};
@@ -306,7 +310,8 @@ Office.onReady(function(info){
   poll();var evOK=false;
   try{Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged,soon,function(r){evOK=r.status==="succeeded";});}catch(e){}
   setInterval(function(){if(document.hidden)return;if(!evOK||Date.now()-lastPoll>15000)poll();},evOK?15000:3000);
-  docCount();setInterval(function(){if(!document.hidden&&curView()==="alev")docCount();},300000);
+  if(!cmbOn())$("st2").textContent="Kombo sayacı kapalı · Word'e soru sorulmuyor";
+  if(cmbOn())docCount();setInterval(function(){if(!document.hidden&&curView()==="alev"&&cmbOn())docCount();},300000);
 });
 })();
 </script>
