@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="38";
+var ALEV_VER="39";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -48,6 +48,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .hh button{border:1px solid var(--line);background:none;color:var(--soft);border-radius:99px;padding:2px 8px;font:600 11px inherit;cursor:pointer}
 .hh button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
 #hsv svg{display:block;width:100%;height:auto;margin-top:8px}#hsv rect.b{fill:var(--acc)}#hsv rect.b.g{fill:var(--ok)}#hsv rect.b.z{fill:var(--line)}
+.hdrv{margin-top:8px;width:100%;border:1px dashed var(--line);background:none;color:var(--soft);border-radius:8px;padding:6px;font:600 12px inherit;cursor:pointer}.hdrv:disabled{opacity:.6;cursor:default}
 #hsv .ax{stroke:var(--line)}#hsv text{fill:var(--soft);font-size:9px}#hsv .gl{stroke:var(--gold);stroke-dasharray:3 3}#hsv polyline{fill:none;stroke:var(--acc);stroke-width:2}#hsv circle{fill:var(--acc)}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
@@ -169,11 +170,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c wide"><div class="k">Bugün</div><div class="v" id="tw">0 <small style="font-size:13px;font-weight:600;color:var(--soft)" id="tg">/ 300</small></div><div class="bar" id="tbar"><i id="tbi" style="width:0"></i></div></div>
     <div class="c"><div class="k">En iyi kombo</div><div class="v" id="bc">0</div><div class="s" id="bcs">cümle</div></div>
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
-    <div class="c wide" id="hist"><div class="hh"><span class="k">Günlük yazım</span><span class="hm"><button data-hm="w" aria-pressed="true">Yazdığım</button><button data-hm="t" aria-pressed="false">Belge</button></span><span class="hr"><button data-hr="14">14g</button><button data-hr="30" aria-pressed="true">30g</button><button data-hr="90">90g</button></span></div><div id="hsv"></div><div class="s" id="hcap"></div></div>
+    <div class="c wide" id="hist"><div class="hh"><span class="k">Günlük yazım</span><span class="hm"><button data-hm="w" aria-pressed="true">Yazdığım</button><button data-hm="t" aria-pressed="false">Belge</button></span><span class="hr"><button data-hr="14">14g</button><button data-hr="30" aria-pressed="true">30g</button><button data-hr="90">90g</button><button data-hr="0">Tümü</button></span></div><div id="hsv"></div><div class="s" id="hcap"></div><button id="hdrv" class="hdrv">↧ Drive sürüm geçmişinden doldur</button></div>
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s38</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s39</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -298,12 +299,32 @@ function docKey(){var u="";try{u=Office.context.document.url||"";}catch(e){}u=de
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){var n=wc(b.text);$("dw").textContent=n.toLocaleString("tr-TR");
   if(n>0){S.tot=S.tot||{};var k=docKey(),t=S.tot[k]=S.tot[k]||{};t[day()]=n;save();hist();}});}).catch(function(){});}
 var HM="w",HR=30;
-function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6,n=HR,ds=[],d=new Date();d.setDate(d.getDate()-n+1);
+function loadZip(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";sc.onload=function(){ok(window.JSZip);};sc.onerror=function(){no(new Error("JSZip yüklenemedi"));};document.head.appendChild(sc);});}
+function xmlWords(x){x=x.replace(/<w:delText[^>]*>[\s\S]*?<\/w:delText>/g,"").replace(/<w:footnoteReference[^>]*\/>/g,"").replace(/<(w:p|text:p|text:h)[ >][\s\S]*?<\/\1>/g,function(m){return m+"\n";}).replace(/<w:tab\/>|<text:s[^>]*\/>|<text:tab\/>|<w:br\/>/g," ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'");return wc(x);}
+function drvHist(){var g=window.__G,btn=$("hdrv"),cap=$("hcap");if(!g||!g.ok()){cap.textContent="Önce Dal/Bağlam sekmesinden Google'a bağlan, sonra tekrar bas.";return;}
+  var key=docKey(),api="https://www.googleapis.com/drive/v3/files",J=function(u){return g.gget(u).then(function(r){return r.json();});};
+  var stem=key.replace(/[\s_-]*\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\s*$/,"").trim()||key;btn.disabled=true;cap.textContent="Drive'da “"+key+"” aranıyor…";
+  var found={},files;
+  J(api+"?q="+encodeURIComponent("name contains '"+key.replace(/'/g,"\\'")+"' and trashed = false")+"&fields=files(id,name,parents,mimeType)&pageSize=10").then(function(j){var f=(j.files||[]).filter(function(x){return /\.docx$/i.test(x.name);})[0];if(!f)throw new Error("Drive'da bu adla .docx bulunamadı");
+    return J(api+"?q="+encodeURIComponent("'"+f.parents[0]+"' in parents and name contains '"+stem.replace(/'/g,"\\'")+"' and trashed = false")+"&fields=files(id,name,mimeType,modifiedTime)&pageSize=50");})
+  .then(function(j){files=(j.files||[]).filter(function(x){return /\.(docx|odt)$/i.test(x.name);});var all=[];
+    return files.reduce(function(p,f){return p.then(function(){return J(api+"/"+f.id+"/revisions?pageSize=200&fields=revisions(id,modifiedTime)").then(function(r){(r.revisions||[]).forEach(function(v){all.push({f:f,id:v.id,t:v.modifiedTime});});}).catch(function(){all.push({f:f,id:null,t:f.modifiedTime});});});},Promise.resolve()).then(function(){return all;});})
+  .then(function(all){var by={};all.forEach(function(v){var k=day(new Date(v.t));if(!by[k]||by[k].t<v.t)by[k]=v;});var list=Object.keys(by).sort().map(function(k){return [k,by[k]];});
+    if(!list.length)throw new Error("Sürüm geçmişi boş");return loadZip().then(function(Z){var i=0,done=0,T=(S.tot=S.tot||{})[key]=(S.tot[key]||{}),today=day();
+      function next(){if(i>=list.length)return;var k=list[i][0],v=list[i][1];i++;cap.textContent="Sürümler okunuyor "+i+"/"+list.length+" · "+k;
+        var u=v.id?api+"/"+v.f.id+"/revisions/"+v.id+"?alt=media":api+"/"+v.f.id+"?alt=media";
+        return g.gget(u).then(function(r){return r.arrayBuffer();}).then(function(b){return Z.loadAsync(b);}).then(function(z){var e=z.file("word/document.xml")||z.file("content.xml");return e?e.async("string"):"";})
+          .then(function(x){var n=x?xmlWords(x):0;if(n>0&&(k!==today||T[k]==null)){T[k]=n;done++;}}).catch(function(){}).then(next);}
+      return Promise.resolve(next()).then(function(){save();HM="t";HR=0;[].forEach.call($("hist").querySelectorAll("button[data-hm],button[data-hr]"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();
+        cap.textContent=done+" günün toplamı Drive'dan geldi ("+files.map(function(f){return f.name;}).join(", ")+"). Drive eski sürümleri ~30 gün ya da 100 sürüm tutar; daha eskisi yok. "+cap.textContent;});});})
+  .catch(function(e){cap.textContent="Olmadı: "+(e&&e.message||(e&&e.code?"Google "+e.code:e));}).then(function(){btn.disabled=false;});}
+function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6,n=HR,ds=[],d=new Date();
+  if(!n){var ks=Object.keys(S.days).filter(function(k){return S.days[k]>0;}).concat(Object.keys((S.tot||{})[docKey()]||{})).sort();n=14;if(ks.length){var f=new Date(ks[0]+"T12:00:00");n=Math.max(14,Math.round((new Date()-f)/864e5)+1);}}d.setDate(d.getDate()-n+1);
   for(var i=0;i<n;i++){ds.push(day(d));d.setDate(d.getDate()+1);}
   var T=(S.tot||{})[docKey()]||{},vals,cap;
   if(HM==="w"){vals=ds.map(function(k){return S.days[k]||0;});var sum=vals.reduce(function(a,b){return a+b;},0),act=vals.filter(function(v){return v>0;}).length;
     cap="Son "+n+" gün: "+sum.toLocaleString("tr-TR")+" kelime · "+act+" gün yazdın"+(act?" · yazdığın gün ort. "+Math.round(sum/act).toLocaleString("tr-TR"):"")+". Panelin saydığı kelimeler (silmeler düşülmez).";}
-  else{var last=null;Object.keys(T).sort().forEach(function(k){if(k<ds[0])last=T[k];});vals=ds.map(function(k){if(T[k]!=null)last=T[k];return last;});
+  else{var last=null;Object.keys(T).sort().forEach(function(k){if(k<ds[0])last=T[k];});vals=ds.map(function(k){return T[k]!=null?T[k]:null;});if(last!=null&&vals[0]==null)vals[0]=last;
     var known=ds.filter(function(k){return T[k]!=null;});cap=known.length?("“"+docKey()+"” toplamı · "+known.length+" günün kaydı var (her gün otomatik kaydedilir)."):"Belge toplamı bugünden itibaren günlük kaydediliyor; birkaç gün sonra çizgi oluşur.";}
   var nums=vals.filter(function(v){return v!=null;}),mx=Math.max.apply(null,nums.concat([HM==="w"?S.goal:1])),mn=HM==="t"&&nums.length?Math.min.apply(null,nums):0;
   if(HM==="t"){var pad=Math.max(50,(mx-mn)*0.15);mn=Math.max(0,mn-pad);mx=mx+pad;}
@@ -314,10 +335,10 @@ function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6
     vals.forEach(function(v,i){var h=Math.max(v?2:1,(H-pt-pb)*v/mx),c=v>=S.goal?"b g":v?"b":"b z";o+='<rect class="'+c+'" x="'+(pl+i*bw+1)+'" y="'+(H-pb-h)+'" width="'+Math.max(1,bw-2)+'" height="'+h+'" rx="1.5"><title>'+ds[i]+": "+v+' kelime</title></rect>';});}
   else{var pts=[];vals.forEach(function(v,i){if(v!=null)pts.push([pl+i*bw+bw/2,y(v),ds[i],v]);});
     if(pts.length>1)o+='<polyline points="'+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ")+'"/>';
-    pts.forEach(function(p){if(T[p[2]]!=null)o+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4"><title>'+p[2]+": "+p[3].toLocaleString("tr-TR")+' kelime</title></circle>';});}
-  var step=n<=14?2:n<=30?7:30;for(var j=n-1;j>=0;j-=step){var p=ds[j].split("-");o+='<text x="'+(pl+j*bw+bw/2)+'" y="'+(H-3)+'" text-anchor="middle">'+(+p[2])+"."+(+p[1])+'</text>';}
+    var pv=null;pts.forEach(function(p){var df=pv==null?"":" ("+(p[3]-pv>=0?"+":"")+(p[3]-pv).toLocaleString("tr-TR")+")";pv=p[3];if(T[p[2]]!=null)o+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(n>60?1.6:2.4)+'"><title>'+p[2]+": "+p[3].toLocaleString("tr-TR")+' kelime'+df+'</title></circle>';});}
+  var step=n<=14?2:n<=30?7:n<=120?30:Math.ceil(n/4);for(var j=n-1;j>=0;j-=step){var p=ds[j].split("-");o+='<text x="'+(pl+j*bw+bw/2)+'" y="'+(H-3)+'" text-anchor="'+(j===n-1?"end":"middle")+'">'+(+p[2])+"."+(+p[1])+'</text>';}
   box.innerHTML=o+'</svg>';$("hcap").textContent=cap;}
-$("hist").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;if(b.dataset.hm){HM=b.dataset.hm;}if(b.dataset.hr){HR=+b.dataset.hr;}
+$("hist").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;if(b.id==="hdrv"){drvHist();return;}if(b.dataset.hm){HM=b.dataset.hm;}if(b.dataset.hr){HR=+b.dataset.hr;}
   [].forEach.call(this.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();});
 $("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);$("cmb").value=String(cmbOn()?1:0);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
@@ -611,8 +632,9 @@ var G=(function(){
   var FULL=null;function full(id){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}return gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return shrink(b,1600);}).then(function(u){FULL=u;return u;});}
   function dropFull(){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}}
   function getf(name){var q=encodeURIComponent("name = '"+name+"' and trashed = false");return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&pageSize=1&fields=files(id)").then(function(r){return r.json();}).then(function(j){var f=j.files&&j.files[0];if(!f)return null;return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();});});}
-  return {ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
+  return {gget:function(u){return gget(u);},ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
+window.__G=G;
 function gbar(){var b=$("gbar");if(UI.v==="alev"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
