@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="37";
+var ALEV_VER="38";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -44,6 +44,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .c .v{font:800 22px/1.2 -apple-system,system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .c .s{font-size:12px;color:var(--soft)}
 .c.wide{grid-column:1/3}
+.hh{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.hh .k{flex:1}
+.hh button{border:1px solid var(--line);background:none;color:var(--soft);border-radius:99px;padding:2px 8px;font:600 11px inherit;cursor:pointer}
+.hh button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+#hsv svg{display:block;width:100%;height:auto;margin-top:8px}#hsv rect.b{fill:var(--acc)}#hsv rect.b.g{fill:var(--ok)}#hsv rect.b.z{fill:var(--line)}
+#hsv .ax{stroke:var(--line)}#hsv text{fill:var(--soft);font-size:9px}#hsv .gl{stroke:var(--gold);stroke-dasharray:3 3}#hsv polyline{fill:none;stroke:var(--acc);stroke-width:2}#hsv circle{fill:var(--acc)}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
 .bar.done i{background:var(--ok)}
@@ -164,10 +169,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c wide"><div class="k">Bugün</div><div class="v" id="tw">0 <small style="font-size:13px;font-weight:600;color:var(--soft)" id="tg">/ 300</small></div><div class="bar" id="tbar"><i id="tbi" style="width:0"></i></div></div>
     <div class="c"><div class="k">En iyi kombo</div><div class="v" id="bc">0</div><div class="s" id="bcs">cümle</div></div>
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
+    <div class="c wide" id="hist"><div class="hh"><span class="k">Günlük yazım</span><span class="hm"><button data-hm="w" aria-pressed="true">Yazdığım</button><button data-hm="t" aria-pressed="false">Belge</button></span><span class="hr"><button data-hr="14">14g</button><button data-hr="30" aria-pressed="true">30g</button><button data-hr="90">90g</button></span></div><div id="hsv"></div><div class="s" id="hcap"></div></div>
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s37</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s38</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -240,7 +246,7 @@ function sfx(n){if(!sm())return;if(custom()&&customWhen(n)){playCustom();return;
     var vs=speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang);});var pick=vs.find(function(v){return /Daniel|Fred|Alex|Ralph|Arthur/i.test(v.name);})||vs[0];if(pick)u.voice=pick;speechSynthesis.cancel();setTimeout(function(){speechSynthesis.speak(u);},380);}catch(e){}}}
 function sfxEnd(n){if(!sm()||n<3)return;[12,7,3,0].forEach(function(st,i){tone(262*Math.pow(2,st/12),i*0.09,0.16,"triangle",0.15);});}
 function onSentence(){combo++;sfx(combo);sessS++;bump();if(MS[combo])say(MS[combo]);else if(combo>30&&combo%10===0)say("x"+combo+"! İnanılmaz seri");else if(Date.now()-lastMsgAt>8000)say(SMALL[Math.floor(Math.random()*SMALL.length)]);if(combo>S.best){S.best=combo;save();}}
-function onWords(n){sessW+=n;var k=day();var before=S.days[k]||0;S.days[k]=before+n;if(before<S.goal&&S.days[k]>=S.goal)say("Günlük hedef tamam! 🎉 "+S.goal+" kelime");save();}
+function onWords(n){sessW+=n;try{if(curView()==="alev")setTimeout(hist,0);}catch(e){}var k=day();var before=S.days[k]||0;S.days[k]=before+n;if(before<S.goal&&S.days[k]>=S.goal)say("Günlük hedef tamam! 🎉 "+S.goal+" kelime");save();}
 function endCombo(){sfxEnd(combo);if(combo>=3)say("Kombo bitti: x"+combo+(combo>=S.best?" · rekor!":"")+". Yeni cümleyle yeniden yak.");else if(combo>0)say("Alev söndü, bir cümleyle yeniden yak.");combo=0;}
 function paint(){
   var now=Date.now(),left=last?Math.max(0,S.win*1000-(now-last)):0;
@@ -288,7 +294,31 @@ function poll(){
     .catch(function(){return Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getFirstOrNullObject();p.load("text");return ctx.sync().then(function(){if(!p.isNullObject)handle(p.text,null);});});})
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
-function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){$("dw").textContent=wc(b.text).toLocaleString("tr-TR");});}).catch(function(){});}
+function docKey(){var u="";try{u=Office.context.document.url||"";}catch(e){}u=decodeURIComponent(String(u).split(/[\\/]/).pop()||"").replace(/\.docx?$/i,"");return u||"belge";}
+function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){var n=wc(b.text);$("dw").textContent=n.toLocaleString("tr-TR");
+  if(n>0){S.tot=S.tot||{};var k=docKey(),t=S.tot[k]=S.tot[k]||{};t[day()]=n;save();hist();}});}).catch(function(){});}
+var HM="w",HR=30;
+function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6,n=HR,ds=[],d=new Date();d.setDate(d.getDate()-n+1);
+  for(var i=0;i<n;i++){ds.push(day(d));d.setDate(d.getDate()+1);}
+  var T=(S.tot||{})[docKey()]||{},vals,cap;
+  if(HM==="w"){vals=ds.map(function(k){return S.days[k]||0;});var sum=vals.reduce(function(a,b){return a+b;},0),act=vals.filter(function(v){return v>0;}).length;
+    cap="Son "+n+" gün: "+sum.toLocaleString("tr-TR")+" kelime · "+act+" gün yazdın"+(act?" · yazdığın gün ort. "+Math.round(sum/act).toLocaleString("tr-TR"):"")+". Panelin saydığı kelimeler (silmeler düşülmez).";}
+  else{var last=null;Object.keys(T).sort().forEach(function(k){if(k<ds[0])last=T[k];});vals=ds.map(function(k){if(T[k]!=null)last=T[k];return last;});
+    var known=ds.filter(function(k){return T[k]!=null;});cap=known.length?("“"+docKey()+"” toplamı · "+known.length+" günün kaydı var (her gün otomatik kaydedilir)."):"Belge toplamı bugünden itibaren günlük kaydediliyor; birkaç gün sonra çizgi oluşur.";}
+  var nums=vals.filter(function(v){return v!=null;}),mx=Math.max.apply(null,nums.concat([HM==="w"?S.goal:1])),mn=HM==="t"&&nums.length?Math.min.apply(null,nums):0;
+  if(HM==="t"){var pad=Math.max(50,(mx-mn)*0.15);mn=Math.max(0,mn-pad);mx=mx+pad;}
+  var y=function(v){return pt+(H-pt-pb)*(1-(v-mn)/((mx-mn)||1));},bw=(W-pl)/n,o='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Günlük yazım grafiği">';
+  var fmt=function(v){return v>=1000?(Math.round(v/100)/10+"b"):String(Math.round(v));};
+  o+='<line class="ax" x1="'+pl+'" x2="'+W+'" y1="'+(H-pb)+'" y2="'+(H-pb)+'"/><text x="'+(pl-3)+'" y="'+(y(mx)+8)+'" text-anchor="end">'+fmt(mx)+'</text><text x="'+(pl-3)+'" y="'+(H-pb)+'" text-anchor="end">'+fmt(mn)+'</text>';
+  if(HM==="w"){if(S.goal<=mx)o+='<line class="gl" x1="'+pl+'" x2="'+W+'" y1="'+y(S.goal)+'" y2="'+y(S.goal)+'"/>';
+    vals.forEach(function(v,i){var h=Math.max(v?2:1,(H-pt-pb)*v/mx),c=v>=S.goal?"b g":v?"b":"b z";o+='<rect class="'+c+'" x="'+(pl+i*bw+1)+'" y="'+(H-pb-h)+'" width="'+Math.max(1,bw-2)+'" height="'+h+'" rx="1.5"><title>'+ds[i]+": "+v+' kelime</title></rect>';});}
+  else{var pts=[];vals.forEach(function(v,i){if(v!=null)pts.push([pl+i*bw+bw/2,y(v),ds[i],v]);});
+    if(pts.length>1)o+='<polyline points="'+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ")+'"/>';
+    pts.forEach(function(p){if(T[p[2]]!=null)o+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4"><title>'+p[2]+": "+p[3].toLocaleString("tr-TR")+' kelime</title></circle>';});}
+  var step=n<=14?2:n<=30?7:30;for(var j=n-1;j>=0;j-=step){var p=ds[j].split("-");o+='<text x="'+(pl+j*bw+bw/2)+'" y="'+(H-3)+'" text-anchor="middle">'+(+p[2])+"."+(+p[1])+'</text>';}
+  box.innerHTML=o+'</svg>';$("hcap").textContent=cap;}
+$("hist").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;if(b.dataset.hm){HM=b.dataset.hm;}if(b.dataset.hr){HR=+b.dataset.hr;}
+  [].forEach.call(this.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();});
 $("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);$("cmb").value=String(cmbOn()?1:0);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
 $("cmb").onchange=function(){S.cmb=parseInt(this.value,10);save();if(!cmbOn()){combo=0;paint();$("st2").textContent="Kombo sayacı kapalı · Word'e soru sorulmuyor";}else{poll();}};
@@ -311,7 +341,7 @@ Office.onReady(function(info){
   try{Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged,soon,function(r){evOK=r.status==="succeeded";});}catch(e){}
   setInterval(function(){if(document.hidden)return;if(!evOK||Date.now()-lastPoll>15000)poll();},evOK?15000:3000);
   if(!cmbOn())$("st2").textContent="Kombo sayacı kapalı · Word'e soru sorulmuyor";
-  if(cmbOn())docCount();setInterval(function(){if(!document.hidden&&curView()==="alev"&&cmbOn())docCount();},300000);
+  docCount();hist();setInterval(function(){if(!document.hidden&&curView()==="alev")docCount();},300000);
 });
 })();
 </script>
