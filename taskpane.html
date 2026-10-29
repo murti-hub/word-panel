@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="39";
+var ALEV_VER="40";
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -170,11 +170,11 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
     <div class="c wide"><div class="k">Bugün</div><div class="v" id="tw">0 <small style="font-size:13px;font-weight:600;color:var(--soft)" id="tg">/ 300</small></div><div class="bar" id="tbar"><i id="tbi" style="width:0"></i></div></div>
     <div class="c"><div class="k">En iyi kombo</div><div class="v" id="bc">0</div><div class="s" id="bcs">cümle</div></div>
     <div class="c"><div class="k">Belge</div><div class="v" id="dw">–</div><div class="s">kelime</div></div>
-    <div class="c wide" id="hist"><div class="hh"><span class="k">Günlük yazım</span><span class="hm"><button data-hm="w" aria-pressed="true">Yazdığım</button><button data-hm="t" aria-pressed="false">Belge</button></span><span class="hr"><button data-hr="14">14g</button><button data-hr="30" aria-pressed="true">30g</button><button data-hr="90">90g</button><button data-hr="0">Tümü</button></span></div><div id="hsv"></div><div class="s" id="hcap"></div><button id="hdrv" class="hdrv">↧ Drive sürüm geçmişinden doldur</button></div>
+    <div class="c wide" id="hist"><div class="hh"><span class="k">Günlük yazım</span><span class="hm"><button data-hm="w" aria-pressed="true">Yazdığım</button><button data-hm="t" aria-pressed="false">Belge</button></span><span class="hr"><button data-hr="14">14g</button><button data-hr="30" aria-pressed="true">30g</button><button data-hr="90">90g</button><button data-hr="0">Tümü</button></span></div><div id="hsv"></div><div class="s" id="hcap"></div></div>
   </div>
   <div class="err" id="err"></div>
   <div id="sndh" hidden style="font-size:12px;color:var(--soft);text-align:center;margin:4px 0">🔇 Sesin çalması için panele bir kez dokun</div>
-  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s39</span><button id="sb">Ayarlar</button></div>
+  <div class="foot"><span id="st2">Bekleniyor…</span><span style="opacity:.5">s40</span><button id="sb">Ayarlar</button></div>
   <div class="set" id="set">
     <label>Günlük hedef (kelime) <input type="number" id="goal" min="50" step="50"></label>
     <label>Kombo süresi <select id="win"><option value="120">2 dk</option><option value="300">5 dk</option><option value="600">10 dk</option><option value="900">15 dk</option><option value="1200">20 dk</option></select></label>
@@ -301,7 +301,7 @@ function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text"
 var HM="w",HR=30;
 function loadZip(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";sc.onload=function(){ok(window.JSZip);};sc.onerror=function(){no(new Error("JSZip yüklenemedi"));};document.head.appendChild(sc);});}
 function xmlWords(x){x=x.replace(/<w:delText[^>]*>[\s\S]*?<\/w:delText>/g,"").replace(/<w:footnoteReference[^>]*\/>/g,"").replace(/<(w:p|text:p|text:h)[ >][\s\S]*?<\/\1>/g,function(m){return m+"\n";}).replace(/<w:tab\/>|<text:s[^>]*\/>|<text:tab\/>|<w:br\/>/g," ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'");return wc(x);}
-function drvHist(){var g=window.__G,btn=$("hdrv"),cap=$("hcap");if(!g||!g.ok()){cap.textContent="Önce Dal/Bağlam sekmesinden Google'a bağlan, sonra tekrar bas.";return;}
+function drvHist(){var g=window.__G,btn={},cap=$("hcap");if(!g||!g.ok()||S.hdone||drvHist.on)return;drvHist.on=1;
   var key=docKey(),api="https://www.googleapis.com/drive/v3/files",J=function(u){return g.gget(u).then(function(r){return r.json();});};
   var stem=key.replace(/[\s_-]*\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\s*$/,"").trim()||key;btn.disabled=true;cap.textContent="Drive'da “"+key+"” aranıyor…";
   var found={},files;
@@ -315,9 +315,10 @@ function drvHist(){var g=window.__G,btn=$("hdrv"),cap=$("hcap");if(!g||!g.ok()){
         var u=v.id?api+"/"+v.f.id+"/revisions/"+v.id+"?alt=media":api+"/"+v.f.id+"?alt=media";
         return g.gget(u).then(function(r){return r.arrayBuffer();}).then(function(b){return Z.loadAsync(b);}).then(function(z){var e=z.file("word/document.xml")||z.file("content.xml");return e?e.async("string"):"";})
           .then(function(x){var n=x?xmlWords(x):0;if(n>0&&(k!==today||T[k]==null)){T[k]=n;done++;}}).catch(function(){}).then(next);}
-      return Promise.resolve(next()).then(function(){save();HM="t";HR=0;[].forEach.call($("hist").querySelectorAll("button[data-hm],button[data-hr]"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();
-        cap.textContent=done+" günün toplamı Drive'dan geldi ("+files.map(function(f){return f.name;}).join(", ")+"). Drive eski sürümleri ~30 gün ya da 100 sürüm tutar; daha eskisi yok. "+cap.textContent;});});})
-  .catch(function(e){cap.textContent="Olmadı: "+(e&&e.message||(e&&e.code?"Google "+e.code:e));}).then(function(){btn.disabled=false;});}
+      return Promise.resolve(next()).then(function(){if(done)S.hdone=1;save();HM="t";HR=0;[].forEach.call($("hist").querySelectorAll("button[data-hm],button[data-hr]"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();
+        cap.textContent="Geçmiş Drive sürümlerinden bir kez çekildi: "+done+" gün. "+cap.textContent;});});})
+  .catch(function(e){cap.textContent="Olmadı: "+(e&&e.message||(e&&e.code?"Google "+e.code:e));}).then(function(){drvHist.on=0;});}
+setInterval(function(){if(!S.hdone&&!document.hidden&&curView()==="alev")drvHist();},20000);
 function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6,n=HR,ds=[],d=new Date();
   if(!n){var ks=Object.keys(S.days).filter(function(k){return S.days[k]>0;}).concat(Object.keys((S.tot||{})[docKey()]||{})).sort();n=14;if(ks.length){var f=new Date(ks[0]+"T12:00:00");n=Math.max(14,Math.round((new Date()-f)/864e5)+1);}}d.setDate(d.getDate()-n+1);
   for(var i=0;i<n;i++){ds.push(day(d));d.setDate(d.getDate()+1);}
@@ -338,7 +339,7 @@ function hist(){var box=$("hsv");if(!box)return;var W=300,H=110,pl=30,pb=16,pt=6
     var pv=null;pts.forEach(function(p){var df=pv==null?"":" ("+(p[3]-pv>=0?"+":"")+(p[3]-pv).toLocaleString("tr-TR")+")";pv=p[3];if(T[p[2]]!=null)o+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(n>60?1.6:2.4)+'"><title>'+p[2]+": "+p[3].toLocaleString("tr-TR")+' kelime'+df+'</title></circle>';});}
   var step=n<=14?2:n<=30?7:n<=120?30:Math.ceil(n/4);for(var j=n-1;j>=0;j-=step){var p=ds[j].split("-");o+='<text x="'+(pl+j*bw+bw/2)+'" y="'+(H-3)+'" text-anchor="'+(j===n-1?"end":"middle")+'">'+(+p[2])+"."+(+p[1])+'</text>';}
   box.innerHTML=o+'</svg>';$("hcap").textContent=cap;}
-$("hist").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;if(b.id==="hdrv"){drvHist();return;}if(b.dataset.hm){HM=b.dataset.hm;}if(b.dataset.hr){HR=+b.dataset.hr;}
+$("hist").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;if(b.dataset.hm){HM=b.dataset.hm;}if(b.dataset.hr){HR=+b.dataset.hr;}
   [].forEach.call(this.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",String(x.dataset.hm?x.dataset.hm===HM:+x.dataset.hr===HR));});hist();});
 $("sb").onclick=function(){var s=$("set");s.classList.toggle("on");$("goal").value=S.goal;$("win").value=String(S.win);$("snd").value=String(S.snd==null?1:S.snd);$("cmb").value=String(cmbOn()?1:0);sndUI();$("sndDbg").textContent=sdbg();$("vol").value=String(S.vol==null?60:S.vol);};
 $("goal").onchange=function(){var v=parseInt(this.value,10);if(v>=50){S.goal=v;save();paint();}};
