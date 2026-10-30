@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="47",ALEV_OFF=true;
+var ALEV_VER="48",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -667,7 +667,14 @@ function gbar(){var b=$("gbar");if(UI.v==="alev"||UI.v==="ic"){b.classList.add("
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
 /* --- Başlıklar (içindekiler) --- */
-var IC={list:null,busy:false,err:"",q:"",max:9,at:-1,doc:""};
+var IC={list:null,busy:false,err:"",q:"",max:9,at:-1,doc:"",send:null};
+function icSend(){if(!IC.list||!IC.list.length)return;if(!G.canWrite()){IC.send={err:"Önce Dal sekmesinden Google'a bağlan."};renderIC();return;}
+  var pj=(($("icpj")||{}).value)||(proj()&&proj().id)||"",id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  IC.send={id:id,at:Date.now(),msg:"Gönderiliyor…"};renderIC();
+  G.upload("agac-baslik-req-"+id+".json",{app:"agac-baslik-req",id:id,at:Date.now(),pj:pj,heads:IC.list.map(function(x){return {lv:x.lv,n:encodeURIComponent(x.n||""),t:encodeURIComponent(x.t)};})})
+   .then(function(){IC.send.msg="Gönderildi. Yazı ağacı açıksa 15 saniye içinde uygular; kapalıysa açınca uygular.";renderIC();icPoll();},function(){IC.send={err:"Drive'a gönderilemedi, tekrar dene."};renderIC();});}
+var icT=null;function icPoll(){clearTimeout(icT);var w=IC.send;if(!w||!w.id||w.done)return;if(Date.now()-w.at>900000){w.msg="Yazı ağacı henüz uygulamadı; ağacı açınca uygular.";renderIC();return;}
+  G.get("agac-baslik-res-"+w.id+".json").then(function(o){if(o&&o.msg){w.done=1;w.msg="✓ Yazı ağacına aktarıldı: "+o.msg+(o.orph&&o.orph.length?" ("+o.orph.slice(0,4).join("; ")+(o.orph.length>4?"…":"")+")":"")+". Beğenmezsen ağaçta ↶ Geri al.";renderIC();}else icT=setTimeout(icPoll,10000);},function(){icT=setTimeout(icPoll,15000);});}
 function icLevel(p){var m=/^Heading(\d)$/.exec(p.styleBuiltIn||"");if(m)return +m[1];if(p.styleBuiltIn==="Title")return 1;var o=p.outlineLevel;return (typeof o==="number"&&o>=1&&o<=9)?o:0;}
 function icLoad(){if(IC.busy||!window.Word)return;IC.busy=true;IC.err="";renderIC();
   Word.run(function(ctx){var ps=ctx.document.body.paragraphs;ps.load("items/styleBuiltIn,items/outlineLevel");
@@ -691,6 +698,8 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
   var h='<div class="ich"><input id="icq" placeholder="Başlıklarda ara…" value="'+esc(IC.q)+'"><button class="btn" id="icr" title="Belgeden yeniden oku">↻</button></div>';
   var lvls={};(IC.list||[]).forEach(function(x){lvls[x.lv]=1;});var ks=Object.keys(lvls).map(Number).sort();
   if(ks.length>1){h+='<div class="icl">'+ks.map(function(l){return '<button data-icm="'+l+'" aria-pressed="'+(IC.max===l)+'">'+(l===1?"1":"1–"+l)+'</button>';}).join("")+'<button data-icm="9" aria-pressed="'+(IC.max>=ks[ks.length-1])+'">Hepsi</button></div>';}
+  if(IC.list&&IC.list.length){var pjs=(A&&A.projects)||[],cp=proj();h+='<div class="ich">'+(pjs.length>1?'<select id="icpj" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:5px;font-size:12px">'+pjs.map(function(p){return '<option value="'+esc(p.id)+'"'+(cp&&cp.id===p.id?" selected":"")+'>'+esc(p.name||"Proje")+'</option>';}).join("")+'</select>':'')+'<button class="btn" id="icsend" title="Word\'deki başlık sırasını, adlarını ve düzeylerini Yazı ağacına işler; dallardaki notlar ve alıntılar yerinde kalır">↗ Yazı ağacına aktar</button></div>';
+    if(IC.send)h+='<div class="icm">'+esc(IC.send.err||IC.send.msg||"")+'</div>';}
   if(IC.busy)h+='<div class="icm">Belgedeki başlıklar okunuyor…</div>';
   if(IC.err)h+='<div class="icm">'+esc(IC.err)+'</div>';
   if(IC.list){var q=IC.q.toLowerCase(),n=0;IC.list.forEach(function(x,k){if(x.lv>IC.max&&!q)return;if(q&&((x.n||"")+" "+x.t).toLowerCase().indexOf(q)<0)return;n++;h+='<button class="ici l'+Math.min(x.lv,6)+(k===IC.at?" at":"")+'" data-ic="'+k+'">'+(x.n?'<span class="icn">'+esc(x.n)+'</span> ':"")+esc(x.t)+'</button>';});
@@ -699,7 +708,7 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
     else h+='<div class="icm">'+IC.list.length+' başlık · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
 document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
-  var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}});
+  var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icsend")){icSend();}});
 document.addEventListener("change",function(e){var b=e.target&&e.target.getAttribute&&e.target.getAttribute("data-bf");if(b){UI[b]=e.target.value;saveUI();renderB();}});
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="icq"){IC.q=e.target.value;renderIC();}});
 function show(v,user){UI.v=v;window.__view=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev"&&v!=="ic")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz","ic"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();if(v==="ic")renderIC(true);gbar();if(v!=="alev"&&v!=="ic")G.sync(false);}
