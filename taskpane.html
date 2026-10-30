@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="44",ALEV_OFF=true;
+var ALEV_VER="45",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -660,7 +660,10 @@ function icLoad(){if(IC.busy||!window.Word)return;IC.busy=true;IC.err="";renderI
 function icGo(k){var it=IC.list&&IC.list[k];if(!it||!window.Word)return;var key=it.t.slice(0,200),nth=0;for(var i=0;i<k;i++)if(IC.list[i].t.slice(0,200)===key)nth++;
   IC.at=k;renderIC();
   Word.run(function(ctx){var rs=ctx.document.body.search(key.replace(/\^/g,"^^"),{matchCase:true});rs.load("items/text");
-    return ctx.sync().then(function(){var r=rs.items[nth]||rs.items[0];if(!r){IC.err="“"+it.t.slice(0,60)+"” belgede bulunamadı; ↻ ile yenile.";renderIC();return;}r.select("Start");return ctx.sync();});})
+    return ctx.sync().then(function(){var pp=rs.items.map(function(r){var q=r.paragraphs.getFirst();q.load("styleBuiltIn,outlineLevel");return q;});return ctx.sync().then(function(){
+      var hs=rs.items.filter(function(r,i){var sb=pp[i].styleBuiltIn||"";return !/^Toc/i.test(sb)&&icLevel(pp[i])>0;});
+      if(!hs.length)hs=rs.items.filter(function(r,i){return !/^Toc/i.test(pp[i].styleBuiltIn||"");});
+      var r=hs[nth]||hs[0];if(!r){IC.err="“"+it.t.slice(0,60)+"” belgede bulunamadı; ↻ ile yenile.";renderIC();return;}r.select("Start");return ctx.sync();});});})
   .catch(function(){IC.err="Gidilemedi; ↻ ile başlıkları yenile.";renderIC();});}
 setInterval(function(){if(UI.v==="ic"&&!document.hidden&&!(document.activeElement&&document.activeElement.id==="icq"))icLoad();},60000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&UI.v==="ic")icLoad();});
