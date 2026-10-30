@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="45",ALEV_OFF=true;
+var ALEV_VER="46",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -396,9 +396,18 @@ $("fileIn").addEventListener("change",function(){var f=this.files&&this.files[0]
   else alert(want==="baglam"?"Bu bir Bağlam yedeği gibi görünmüyor. Bağlam → Kaydettiklerim → “Yedek indir (.json)” dosyasını seç.":"Bu bir Yazı ağacı yedeği gibi görünmüyor. Yazı ağacı → Yedek → “Yedeği indir (.json)” dosyasını seç.");
 });});
 var KH="alev-data-havuz",H=null;try{H=JSON.parse(localStorage.getItem(KH)||"null");}catch(e){}
+var KZ="alev-data-bz",ZI=[];try{ZI=JSON.parse(localStorage.getItem(KZ)||"[]")||[];}catch(e){}
+function takeZ(o){if(!o||!Array.isArray(o.items))return false;var d=function(v){try{return decodeURIComponent(String(v||""));}catch(e){return String(v||"");}};
+  var m={};ZI.forEach(function(z){m[z.at+"|"+z.s]=z;});o.items.forEach(function(it){var z={s:d(it.s).trim(),p:d(it.p).trim(),src:d(it.src),at:+it.at||0};if(z.s&&z.p)m[z.at+"|"+z.s]=z;});
+  ZI=Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return a.at-b.at;}).slice(-800);try{localStorage.setItem(KZ,JSON.stringify(ZI));}catch(e){}mergeZ();return true;}
+function mergeZ(){if(!B||!B.list)return;var base=B.zbase||B.at||0;B.zbase=base;var n=0;
+  ZI.forEach(function(z){if(z.at<=base)return;var k=z.p.toLowerCase(),x=null;for(var i=0;i<B.list.length;i++){if(String(B.list[i].p).toLowerCase()===k){x=B.list[i];break;}}
+    if(x){if(x.ex.some(function(e){return e.s===z.s;}))return;x.ex.unshift({s:z.s,src:z.src});x.n=(x.n||0)+1;n++;}
+    else{B.list.unshift({p:z.p,n:1,ex:[{s:z.s,src:z.src}],tr:"",fn:"",cat:"",move:"",frame:"",before:"",after:"",alts:[],roles:[],z:1});n++;}});
+  if(n){B.zn=(B.zn||0)+n;try{localStorage.setItem(KB,JSON.stringify(B));}catch(e){}}}
 function take(o,src){ if(!o) return false;
   if(o.app==="baglam"&&Array.isArray(o.saved)){B=packB(o);}
-  else if(o.app==="baglam-word"&&Array.isArray(o.list)){B=o;}
+  else if(o.app==="baglam-word"&&Array.isArray(o.list)){B=o;B.zbase=o.at||0;B.zn=0;setTimeout(function(){mergeZ();if(UI.v==="baglam")renderB();},0);}
   else if(o.app==="agac-word"&&Array.isArray(o.projects)){A=o;}
   else if(o.root&&(o.projects||o.lit)){A=packA(o);}
   else if(o.app==="havuz-word"&&Array.isArray(o.items)){H=o;}
@@ -428,10 +437,10 @@ function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");re
   var head=el.querySelector("#bq")?null:'<input class="q" id="bq" placeholder="Ara: ifade, Türkçe anlam ya da rol (örneğin, karşıtlık…)" value="'+esc(bq)+'"><div class="chips" id="bcats"></div><div id="blist"></div><div class="hint" id="bhint"></div>';
   if(head)el.innerHTML=head;
   $("bcats").innerHTML='<button data-cat="" aria-pressed="'+(!UI.cat)+'">Hepsi</button>'+cats.map(function(c){return'<button data-cat="'+esc(c)+'" aria-pressed="'+(UI.cat===c)+'">'+esc(c)+'</button>';}).join("");
-  $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam?'<span style="opacity:.5">↳ </span>':'')+esc(x.p)+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':'')+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+
+  $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam?'<span style="opacity:.5">↳ </span>':'')+esc(x.p)+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+
     '<div class="more">'+(x.frame?'<div class="fr" lang="en">'+esc(x.frame)+'</div>':'')+(x.before||x.after?'<div class="cell">'+(x.before?'<b>Öncesinde</b>'+esc(x.before):'')+(x.after?'<b>Sonrasında</b>'+esc(x.after):'')+'</div>':'')+
     x.ex.map(function(e,k){return'<div class="ex" lang="en">'+esc(e.s)+'<small>'+esc(e.src)+' · <button class="lk" data-cp="'+id+':'+k+'">kopyala</button></small></div>';}).join("")+(x.alts&&x.alts.length?'<div class="cell"><b>Alternatifler</b>'+x.alts.map(esc).join(" · ")+'</div>':'')+'</div></div>';}).join("")||'<div class="empty">Eşleşen ifade yok.</div>';
-  $("bhint").innerHTML=B.list.length+" ifade · "+srcLine(B,"baglam");
+  $("bhint").innerHTML=B.list.length+" ifade · "+srcLine(B,"baglam")+(B.zn?'<br>Zotero\'dan '+B.zn+' yeni cümle eklendi; Türkçe anlamları Bağlam\'ı bir kere açınca gelir.':'');
 }
 /* --- Dal görünümü --- */
 function proj(){if(!A)return null;return A.projects.find(function(p){return p.id===UI.pj;})||A.projects.find(function(p){return p.id===A.cur;})||A.projects[0];}
@@ -616,10 +625,11 @@ var G=(function(){
       return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();}).then(function(o){seen[name]=f.modifiedTime;return o;});});}
   var busyAt=0;
   function sync(force){if(busy&&Date.now()-busyAt>45000)busy=false;if(!ok()||busy)return;busyAt=Date.now();if(!force&&Date.now()-lastAt<60000)return;busy=true;lastAt=Date.now();status="☁ Drive'dan kontrol ediliyor…";gbar();
-    var names=["alev-baglam.json","alev-agac.json","alev-havuz.json"],got=0,rep=[];if(force)seen={};
+    var ym=function(k){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-k);return "baglam-zotero-"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+".json";};
+    var names=["alev-baglam.json","alev-agac.json","alev-havuz.json",ym(1),ym(0)],got=0,rep=[];if(force)seen={};
     var hm=function(t){return t?new Date(t).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):"?";},lab={"alev-baglam.json":"Bağlam","alev-agac.json":"Ağaç","alev-havuz.json":"Havuz"};
     function rerender(){if(got){if(UI.v==="baglam")renderB();if(UI.v==="dal")renderD();if(UI.v==="havuz")renderH();}}
-    Promise.all(names.map(function(n){return pull(n).then(function(o){if(o===null)rep.push(lab[n]+" yok");else if(o==="same")rep.push(lab[n]+" "+hm(seenAt[n]));else if(take(o,"drive")){got++;rep.push(lab[n]+" "+hm(seenAt[n]));}else rep.push(lab[n]+" okunamadı");},function(e){rep.push(lab[n]+" hata "+(e&&e.code||""));if(e&&(e.code===401||e.code==="net"))throw e;});}))
+    Promise.all(names.map(function(n){return pull(n).then(function(o){if(/^baglam-zotero/.test(n)){if(o&&o!=="same"&&takeZ(o))got++;return;}if(o===null)rep.push(lab[n]+" yok");else if(o==="same")rep.push(lab[n]+" "+hm(seenAt[n]));else if(take(o,"drive")){got++;rep.push(lab[n]+" "+hm(seenAt[n]));}else rep.push(lab[n]+" okunamadı");},function(e){rep.push(lab[n]+" hata "+(e&&e.code||""));if(e&&(e.code===401||e.code==="net"))throw e;});}))
       .then(function(){busy=false;status="☁ son kontrol "+hm(Date.now())+(force?" · "+rep.join(", "):"");gbar();rerender();},
             function(e){busy=false;status=e&&e.code==="net"?"☁ Drive'a ulaşılamadı · ↻ ile tekrar dene":"";gbar();rerender();});}
   setInterval(function(){if(UI.v!=="alev"&&!document.hidden)sync(false);},120000);
