@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="43",ALEV_OFF=true;
+var ALEV_VER="44",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -662,7 +662,9 @@ function icGo(k){var it=IC.list&&IC.list[k];if(!it||!window.Word)return;var key=
   Word.run(function(ctx){var rs=ctx.document.body.search(key.replace(/\^/g,"^^"),{matchCase:true});rs.load("items/text");
     return ctx.sync().then(function(){var r=rs.items[nth]||rs.items[0];if(!r){IC.err="“"+it.t.slice(0,60)+"” belgede bulunamadı; ↻ ile yenile.";renderIC();return;}r.select("Start");return ctx.sync();});})
   .catch(function(){IC.err="Gidilemedi; ↻ ile başlıkları yenile.";renderIC();});}
-function renderIC(first){var el=$("v-ic");if(first&&!IC.list&&!IC.busy){icLoad();return;}
+setInterval(function(){if(UI.v==="ic"&&!document.hidden&&!(document.activeElement&&document.activeElement.id==="icq"))icLoad();},60000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&UI.v==="ic")icLoad();});
+function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoad();return;}setTimeout(icLoad,0);}
   var h='<div class="ich"><input id="icq" placeholder="Başlıklarda ara…" value="'+esc(IC.q)+'"><button class="btn" id="icr" title="Belgeden yeniden oku">↻</button></div>';
   var lvls={};(IC.list||[]).forEach(function(x){lvls[x.lv]=1;});var ks=Object.keys(lvls).map(Number).sort();
   if(ks.length>1){h+='<div class="icl">'+ks.map(function(l){return '<button data-icm="'+l+'" aria-pressed="'+(IC.max===l)+'">'+(l===1?"1":"1–"+l)+'</button>';}).join("")+'<button data-icm="9" aria-pressed="'+(IC.max>=ks[ks.length-1])+'">Hepsi</button></div>';}
@@ -671,7 +673,7 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.list&&!IC.busy){icLoad()
   if(IC.list){var q=IC.q.toLowerCase(),n=0;IC.list.forEach(function(x,k){if(x.lv>IC.max&&!q)return;if(q&&((x.n||"")+" "+x.t).toLowerCase().indexOf(q)<0)return;n++;h+='<button class="ici l'+Math.min(x.lv,6)+(k===IC.at?" at":"")+'" data-ic="'+k+'">'+(x.n?'<span class="icn">'+esc(x.n)+'</span> ':"")+esc(x.t)+'</button>';});
     if(!IC.list.length)h+='<div class="empty"><b>Başlık bulunamadı</b>Belgede “Başlık 1, 2, 3…” (Heading) stilleri kullanılmamış gibi. Başlıklarına bu stilleri verirsen burada listelenir.</div>';
     else if(!n)h+='<div class="icm">Eşleşen başlık yok.</div>';
-    else h+='<div class="icm">'+IC.list.length+' başlık · tıkla, Word o başlığa gider. Başlık ekleyip değiştirince ↻ ile yenile.</div>';}
+    else h+='<div class="icm">'+IC.list.length+' başlık · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
 document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
   var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}});
