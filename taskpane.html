@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="46",ALEV_OFF=true;
+var ALEV_VER="47",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -79,6 +79,8 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .chips{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
 .chips button{border:1px solid var(--line);background:var(--paper);color:var(--soft);border-radius:99px;padding:3px 9px;font-size:11.5px;cursor:pointer}
 .chips button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fx{display:flex;gap:5px;margin:0 0 8px}.fx select{flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:4px 4px;font-size:11.5px}.fx select.on{border-color:var(--acc);color:var(--acc);font-weight:700}
+.tg{display:inline-block;font-size:10.5px;color:var(--soft);border:1px solid var(--line);border-radius:99px;padding:0 6px;margin:2px 3px 0 0}
 .ph{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px}
 .ph .h{display:flex;align-items:baseline;gap:6px}
 .ph .h b{font:600 15.5px Georgia,serif;cursor:pointer;flex:1;min-width:0}
@@ -427,17 +429,25 @@ function loadBox(kind){var nm={baglam:"Bağlam",dal:"Yazı ağacı",havuz:"Havuz
 function srcLine(x,kind){return (x.src==="drive"?"☁ Drive'dan":"dosyadan")+" · "+ago(x.at||x.loaded)+' · <button class="lk" data-load="'+kind+'">Dosyadan yükle</button>';}
 /* --- Bağlam görünümü --- */
 var bq="";
+var KNM=new WeakMap();function bKonum(x){if(KNM.has(x))return KNM.get(x);var out=[],pl=String(x.p||"").toLowerCase();(x.ex||[]).forEach(function(e){var t=String(e.s||""),i=t.toLowerCase().indexOf(pl);if(i<0)return;
+  var pre=t.slice(0,i).replace(/^[\s"'“‘(\[\d.]+/,""),post=t.slice(i+pl.length).replace(/[\s.,;:!?)"'’”\]\d]+$/,""),k=!pre?"Cümle başı":!post?"Cümle sonu":"Cümle içi";if(out.indexOf(k)<0)out.push(k);});KNM.set(x,out);return out;}
+function bTur(x){var p=String(x.pos||"").toLowerCase();if(!p)return "";if(/bağlaç|geçiş/.test(p))return "Bağlaç";if(/kalıp|cümle/.test(p))return "Kalıp";if(/fiil/.test(p))return "Fiil öbeği";if(/edat/.test(p))return "Edat öbeği";if(/isim/.test(p))return "İsim öbeği";if(/zarf/.test(p))return "Zarf";if(/sıfat/.test(p))return "Sıfat";return "Diğer";}
+var BSEC=["Giriş","Literatür","Kuram","Yöntem","Bulgular","Tartışma","Sonuç"],BKON=["Cümle başı","Cümle içi","Cümle sonu"],BTUR=["Bağlaç","Kalıp","Fiil öbeği","İsim öbeği","Edat öbeği","Zarf","Sıfat","Diğer"];
 function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");return;}
   var cats=[];B.list.forEach(function(x){if(x.cat&&cats.indexOf(x.cat)<0)cats.push(x.cat);});
-  var f=fold(bq.trim());var L=B.list.filter(function(x){if(UI.cat&&x.cat!==UI.cat)return false;if(!f)return true;var hay=fold([x.p,x.tr,x.fn,x.move,x.cat,(x.roles||[]).join(" "),(x.alts||[]).join(" ")].join(" "));if(hay.indexOf(f)>=0)return true;
+  var f=fold(bq.trim());var L=B.list.filter(function(x){if(UI.cat&&x.cat!==UI.cat)return false;if(UI.bsec&&(x.sec||[]).indexOf(UI.bsec)<0)return false;if(UI.bkon&&bKonum(x).indexOf(UI.bkon)<0)return false;if(UI.btur&&bTur(x)!==UI.btur)return false;
+    if(!f)return true;var hay=fold([x.p,x.tr,x.fn,x.move,x.cat,x.pos,(x.sec||[]).join(" "),bKonum(x).join(" "),(x.roles||[]).join(" "),(x.alts||[]).join(" ")].join(" "));if(hay.indexOf(f)>=0)return true;
     /* ek farkına takılmasın: örneğin ~ örnek, contrasting ~ contrast */
     var ws=f.split(/\s+/).filter(function(w){return w.length>2;});return ws.length>0&&ws.every(function(w){return hay.indexOf(w.slice(0,Math.max(4,w.length-3)))>=0;});});
   /* aynı aileden ifadeler (stress upon / stress upon the fact that) yan yana */
   var byP={};L.forEach(function(x){byP[x.p]=x;});var L2=[],done={};L.forEach(function(x){if(done[x.p])return;if(x.fam&&byP[x.fam]&&!done[x.fam])return;L2.push(x);done[x.p]=1;L.forEach(function(y){if(y.fam===x.p&&!done[y.p]){L2.push(y);done[y.p]=1;}});});L.forEach(function(x){if(!done[x.p]){L2.push(x);done[x.p]=1;}});L=L2;
-  var head=el.querySelector("#bq")?null:'<input class="q" id="bq" placeholder="Ara: ifade, Türkçe anlam ya da rol (örneğin, karşıtlık…)" value="'+esc(bq)+'"><div class="chips" id="bcats"></div><div id="blist"></div><div class="hint" id="bhint"></div>';
+  var head=el.querySelector("#bq")?null:'<input class="q" id="bq" placeholder="Ara: ifade, Türkçe anlam ya da rol (örneğin, karşıtlık…)" value="'+esc(bq)+'"><div class="chips" id="bcats"></div><div class="fx" id="bfx"></div><div id="blist"></div><div class="hint" id="bhint"></div>';
   if(head)el.innerHTML=head;
+  var hasSec=B.list.some(function(x){return x.sec&&x.sec.length;}),hasTur=B.list.some(function(x){return x.pos;});
+  var sel=function(id,lab,opts,v){return '<select data-bf="'+id+'" class="'+(v?"on":"")+'"><option value="">'+lab+'</option>'+opts.map(function(o){return '<option'+(o===v?" selected":"")+'>'+esc(o)+'</option>';}).join("")+'</select>';};
+  $("bfx").innerHTML=(hasSec?sel("bsec","Bölüm: hepsi",BSEC,UI.bsec):"")+sel("bkon","Konum: hepsi",BKON,UI.bkon)+(hasTur?sel("btur","Tür: hepsi",BTUR,UI.btur):"");
   $("bcats").innerHTML='<button data-cat="" aria-pressed="'+(!UI.cat)+'">Hepsi</button>'+cats.map(function(c){return'<button data-cat="'+esc(c)+'" aria-pressed="'+(UI.cat===c)+'">'+esc(c)+'</button>';}).join("");
-  $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam?'<span style="opacity:.5">↳ </span>':'')+esc(x.p)+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+
+  $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam?'<span style="opacity:.5">↳ </span>':'')+esc(x.p)+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+'<div>'+(x.sec||[]).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+bKonum(x).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+(bTur(x)&&bTur(x)!=="Diğer"?'<span class="tg">'+esc(bTur(x))+'</span>':'')+'</div>'+
     '<div class="more">'+(x.frame?'<div class="fr" lang="en">'+esc(x.frame)+'</div>':'')+(x.before||x.after?'<div class="cell">'+(x.before?'<b>Öncesinde</b>'+esc(x.before):'')+(x.after?'<b>Sonrasında</b>'+esc(x.after):'')+'</div>':'')+
     x.ex.map(function(e,k){return'<div class="ex" lang="en">'+esc(e.s)+'<small>'+esc(e.src)+' · <button class="lk" data-cp="'+id+':'+k+'">kopyala</button></small></div>';}).join("")+(x.alts&&x.alts.length?'<div class="cell"><b>Alternatifler</b>'+x.alts.map(esc).join(" · ")+'</div>':'')+'</div></div>';}).join("")||'<div class="empty">Eşleşen ifade yok.</div>';
   $("bhint").innerHTML=B.list.length+" ifade · "+srcLine(B,"baglam")+(B.zn?'<br>Zotero\'dan '+B.zn+' yeni cümle eklendi; Türkçe anlamları Bağlam\'ı bir kere açınca gelir.':'');
@@ -690,6 +700,7 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
 document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
   var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}});
+document.addEventListener("change",function(e){var b=e.target&&e.target.getAttribute&&e.target.getAttribute("data-bf");if(b){UI[b]=e.target.value;saveUI();renderB();}});
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="icq"){IC.q=e.target.value;renderIC();}});
 function show(v,user){UI.v=v;window.__view=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev"&&v!=="ic")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz","ic"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();if(v==="ic")renderIC(true);gbar();if(v!=="alev"&&v!=="ic")G.sync(false);}
 $("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v,1);});
