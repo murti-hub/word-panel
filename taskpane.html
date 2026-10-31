@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="50",ALEV_OFF=false;
+var ALEV_VER="51",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -580,10 +580,12 @@ function wGo(fwd){if(!window.Word)return;Word.run(function(ctx){var rs=ctx.docum
 /* --- Havuz görünümü --- */
 var hq="",hdone=false;
 function renderH(){var el=$("v-havuz");if(!H){el.innerHTML=loadBox("havuz");return;}
-  if(!el.querySelector("#hq"))el.innerHTML='<input class="q" id="hq" placeholder="Fikirlerde ara… (#12 de olur)"><div class="chips"><button data-hd="0" aria-pressed="true">Havuzda</button><button data-hd="1" aria-pressed="false">Aktarılanlar</button></div><div id="hlist"></div><div class="hint" id="hhint"></div>';
+  if(!el.querySelector("#hq"))el.innerHTML='<input class="q" id="hq" placeholder="Fikirlerde ara… (#12 de olur)"><div class="chips"><button data-hd="0" aria-pressed="true">Havuzda</button><button data-hd="1" aria-pressed="false">Aktarılanlar</button></div><div class="chips" id="hcats"></div><div id="hlist"></div><div class="hint" id="hhint"></div>';
   Array.prototype.forEach.call(el.querySelectorAll("[data-hd]"),function(b){b.setAttribute("aria-pressed",String((b.getAttribute("data-hd")==="1")===hdone));});
-  var f=fold(hq.trim());var L=H.items.filter(function(x){return !!x.done===hdone&&(!f||fold(x.t+" "+(x.src||"")+" #"+x.no).indexOf(f)>=0);});
-  $("hlist").innerHTML=L.slice(0,200).map(function(x){var i=H.items.indexOf(x);return'<div class="hv'+(x.done?" done":"")+'"><div class="t" data-ht="1">'+esc(x.t||"(fotoğraf)")+'</div>'+(x.gi&&x.gi.length?'<div class="th">'+x.gi.map(function(g){return'<img data-gid="'+esc(g)+'" alt="Havuz fotoğrafı">';}).join("")+'</div>':'')+'<div class="m"><span class="no">#'+x.no+'</span><span>'+esc(ago(x.at))+'</span>'+(x.src?'<span>📖 '+esc(x.src)+'</span>':'')+(x.ni&&!(x.gi&&x.gi.length)?'<span>📷 '+x.ni+' fotoğraf (henüz Drive\'a gelmedi)</span>':'')+'<span class="sp"></span><button class="ins" data-hi="'+i+'">＋ Ekle</button><button class="lk" data-hc="'+i+'">kopyala</button></div></div>';}).join("")||'<div class="empty">'+(hdone?"Aktarılan fikir yok.":"Havuz boş.")+'</div>';
+  var cc={};H.items.forEach(function(x){if(!!x.done!==hdone)return;(x.cats||[]).forEach(function(c){cc[c]=(cc[c]||0)+1;});});var cks=Object.keys(cc).sort(function(a,b){return cc[b]-cc[a];});if(UI.hcat&&!cc[UI.hcat])UI.hcat="";
+  $("hcats").innerHTML=cks.length?'<button data-hcat="" aria-pressed="'+(!UI.hcat)+'">Hepsi</button>'+cks.map(function(c){return '<button data-hcat="'+esc(c)+'" aria-pressed="'+(UI.hcat===c)+'">'+esc(c)+' '+cc[c]+'</button>';}).join(""):"";
+  var f=fold(hq.trim());var L=H.items.filter(function(x){return !!x.done===hdone&&(!UI.hcat||(x.cats||[]).indexOf(UI.hcat)>=0)&&(!f||fold(x.t+" "+(x.src||"")+" #"+x.no+" "+(x.cats||[]).join(" ")+" "+(x.br||"")).indexOf(f)>=0);});
+  $("hlist").innerHTML=L.slice(0,200).map(function(x){var i=H.items.indexOf(x);return'<div class="hv'+(x.done?" done":"")+'"><div class="t" data-ht="1">'+esc(x.t||"(fotoğraf)")+'</div>'+(x.gi&&x.gi.length?'<div class="th">'+x.gi.map(function(g){return'<img data-gid="'+esc(g)+'" alt="Havuz fotoğrafı">';}).join("")+'</div>':'')+'<div class="m"><span class="no">#'+x.no+'</span><span>'+esc(ago(x.at))+'</span>'+(x.src?'<span>📖 '+esc(x.src)+'</span>':'')+(x.ni&&!(x.gi&&x.gi.length)?'<span>📷 '+x.ni+' fotoğraf (henüz Drive\'a gelmedi)</span>':'')+(x.cats||[]).map(function(c){return '<span class="tg">'+esc(c)+'</span>';}).join("")+(x.br?'<span>→ '+esc(x.br)+'</span>':'')+'<span class="sp"></span><button class="ins" data-hi="'+i+'">＋ Ekle</button><button class="lk" data-hc="'+i+'">kopyala</button></div></div>';}).join("")||'<div class="empty">'+(hdone?"Aktarılan fikir yok.":"Havuz boş.")+'</div>';
   $("hhint").innerHTML=H.items.length+" fikir · "+srcLine(H,"havuz");
   thumbs();
 }
@@ -725,6 +727,7 @@ $("tabs").addEventListener("click",function(e){var b=e.target.closest("button");
 document.addEventListener("click",function(e){var t=e.target;
   var ld=t.closest&&t.closest("[data-load]");if(ld){pick(ld.getAttribute("data-load"));return;}
   var tg=t.closest&&t.closest("[data-tog]");if(tg){tg.closest(".ph").classList.toggle("open");return;}
+  var hc=t.closest&&t.closest("[data-hcat]");if(hc){UI.hcat=hc.getAttribute("data-hcat");saveUI();renderH();return;}
   var c=t.closest&&t.closest("[data-cat]");if(c){UI.cat=c.getAttribute("data-cat");saveUI();renderB();return;}
   var ins=t.closest&&t.closest("[data-ins]");if(ins){insert(B.list[+ins.getAttribute("data-ins")].p,ins);return;}
   var cp=t.closest&&t.closest("[data-cp]");if(cp){var a=cp.getAttribute("data-cp").split(":");copy(B.list[+a[0]].ex[+a[1]].s,cp);return;}
