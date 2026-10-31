@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="48",ALEV_OFF=true;
+var ALEV_VER="49",ALEV_OFF=true;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -67,9 +67,13 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .view{display:none}.view.on{display:block}
 .ich{display:flex;gap:6px;align-items:center;margin-bottom:8px}.ich input{flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px}
 .icl{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}.icl button{border:1px solid var(--line);background:none;color:var(--soft);border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600;cursor:pointer}.icl button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.ici{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink);padding:5px 6px;border-radius:6px;font-size:13px;line-height:1.3;cursor:pointer}.ici:hover{background:var(--line)}
-.ici.l1{font-weight:700;margin-top:6px}.ici.l2{padding-left:16px}.ici.l3{padding-left:28px;color:var(--soft);font-size:12.5px}.ici.l4,.ici.l5,.ici.l6{padding-left:40px;color:var(--soft);font-size:12px}
-.ici.at{background:color-mix(in srgb,var(--acc) 15%,transparent)}.icn{color:var(--acc);font-variant-numeric:tabular-nums;margin-right:2px}.icm{font-size:12px;color:var(--soft);margin:6px 0}
+.icw{--z:#F2F2F2;--zs:#DCDCDC;--zi:#1F1F1F;--zc:#6E6E6E;margin:0 -4px}
+@media (prefers-color-scheme:dark){.icw{--z:#2A2A2A;--zs:#4A4A4A;--zi:#EDEDED;--zc:#A0A0A0}}
+.icr{display:flex;align-items:center;height:22px;border-radius:7px;cursor:pointer;color:var(--zi);font:13px/22px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;white-space:nowrap;overflow:hidden}
+.icr.z{background:var(--z)}.icr.at{background:var(--zs)}
+.icr .chv{flex:none;width:16px;text-align:center;color:var(--zc);font-size:11px}
+.icr .ict{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.icm{font-size:12px;color:var(--soft);margin:6px 0}
 .pad{padding:12px 12px 24px}
 .empty{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--soft);font-size:13px}
 .empty b{display:block;color:var(--ink);font:700 16px Georgia,serif;margin-bottom:6px}
@@ -702,12 +706,17 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
     if(IC.send)h+='<div class="icm">'+esc(IC.send.err||IC.send.msg||"")+'</div>';}
   if(IC.busy)h+='<div class="icm">Belgedeki başlıklar okunuyor…</div>';
   if(IC.err)h+='<div class="icm">'+esc(IC.err)+'</div>';
-  if(IC.list){var q=IC.q.toLowerCase(),n=0;IC.list.forEach(function(x,k){if(x.lv>IC.max&&!q)return;if(q&&((x.n||"")+" "+x.t).toLowerCase().indexOf(q)<0)return;n++;h+='<button class="ici l'+Math.min(x.lv,6)+(k===IC.at?" at":"")+'" data-ic="'+k+'">'+(x.n?'<span class="icn">'+esc(x.n)+'</span> ':"")+esc(x.t)+'</button>';});
+  if(IC.list){var q=IC.q.toLowerCase(),n=0,L=IC.list,closed=IC.closed||(IC.closed={}),hide=0,rows="";
+    var hasKid=function(k){return k+1<L.length&&L[k+1].lv>L[k].lv;},minLv=Math.min.apply(null,L.map(function(x){return x.lv;}));
+    L.forEach(function(x,k){if(hide&&x.lv>hide)return;hide=0;if(x.lv>IC.max&&!q)return;if(q&&((x.n||"")+" "+x.t).toLowerCase().indexOf(q)<0)return;
+      var kid=hasKid(k),cl=!q&&closed[x.lv+"|"+x.t];if(kid&&cl)hide=x.lv;
+      rows+='<div class="icr'+(n%2?"":" z")+(k===IC.at?" at":"")+'" data-ic="'+k+'" style="padding-left:'+(4+(x.lv-minLv)*16)+'px" title="'+esc((x.n?x.n+" ":"")+x.t)+'"><span class="chv"'+(kid?' data-icx="'+k+'"':'')+'>'+(kid?(cl?"›":"⌄"):"")+'</span><span class="ict">'+esc((x.n?x.n+" ":"")+x.t)+'</span></div>';n++;});
+    h+='<div class="icw">'+rows+'</div>';
     if(!IC.list.length)h+='<div class="empty"><b>Başlık bulunamadı</b>Belgede “Başlık 1, 2, 3…” (Heading) stilleri kullanılmamış gibi. Başlıklarına bu stilleri verirsen burada listelenir.</div>';
     else if(!n)h+='<div class="icm">Eşleşen başlık yok.</div>';
     else h+='<div class="icm">'+IC.list.length+' başlık · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
-document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
+document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var cx=t.closest("[data-icx]");if(cx){var ck=IC.list[+cx.getAttribute("data-icx")],kk=ck.lv+"|"+ck.t;IC.closed=IC.closed||{};IC.closed[kk]=!IC.closed[kk];renderIC();return;}var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
   var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icsend")){icSend();}});
 document.addEventListener("change",function(e){var b=e.target&&e.target.getAttribute&&e.target.getAttribute("data-bf");if(b){UI[b]=e.target.value;saveUI();renderB();}});
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="icq"){IC.q=e.target.value;renderIC();}});
