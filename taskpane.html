@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="52",ALEV_OFF=false;
+var ALEV_VER="53",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -678,7 +678,7 @@ var IC={list:null,busy:false,err:"",q:"",max:9,at:-1,doc:"",send:null};
 function icSend(){if(!IC.list||!IC.list.length)return;if(!G.canWrite()){IC.send={err:"Önce Dal sekmesinden Google'a bağlan."};renderIC();return;}
   var pj=(($("icpj")||{}).value)||(proj()&&proj().id)||"",id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   IC.send={id:id,at:Date.now(),msg:"Gönderiliyor…"};renderIC();
-  G.upload("agac-baslik-req-"+id+".json",{app:"agac-baslik-req",id:id,at:Date.now(),pj:pj,heads:IC.list.map(function(x){return {lv:x.lv,n:encodeURIComponent(x.n||""),t:encodeURIComponent(x.t)};})})
+  G.upload("agac-baslik-req-"+id+".json",{app:"agac-baslik-req",id:id,at:Date.now(),pj:pj,heads:IC.list.map(function(x){return {lv:x.lv,n:encodeURIComponent(x.n||""),t:encodeURIComponent(x.t),p:x.p||0,pe:x.pe||0};})})
    .then(function(){IC.send.msg="Gönderildi. Yazı ağacı açıksa 15 saniye içinde uygular; kapalıysa açınca uygular.";renderIC();icPoll();},function(){IC.send={err:"Drive'a gönderilemedi, tekrar dene."};renderIC();});}
 var icT=null;function icPoll(){clearTimeout(icT);var w=IC.send;if(!w||!w.id||w.done)return;if(Date.now()-w.at>900000){w.msg="Yazı ağacı henüz uygulamadı; ağacı açınca uygular.";renderIC();return;}
   G.get("agac-baslik-res-"+w.id+".json").then(function(o){if(o&&o.msg){w.done=1;w.msg="✓ Yazı ağacına aktarıldı: "+o.msg+(o.orph&&o.orph.length?" ("+o.orph.slice(0,4).join("; ")+(o.orph.length>4?"…":"")+")":"")+". Beğenmezsen ağaçta ↶ Geri al.";renderIC();}else icT=setTimeout(icPoll,10000);},function(){icT=setTimeout(icPoll,15000);});}
