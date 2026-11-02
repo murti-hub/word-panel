@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="53",ALEV_OFF=false;
+var ALEV_VER="54",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -65,6 +65,12 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .tabs button{flex:1;border:1px solid var(--line);background:var(--paper);color:var(--soft);border-radius:99px;padding:6px 8px;font-weight:700;font-size:13px;cursor:pointer}
 .tabs button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .view{display:none}.view.on{display:block}
+.kpt{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}.kpt button{border:1px solid var(--line);background:var(--paper);color:var(--soft);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}.kpt button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.kpd{font-size:12.5px;color:var(--soft);margin:0 0 10px;line-height:1.45}
+.kpm{border-left:3px solid var(--acc);padding:4px 0 6px 10px;margin:0 0 10px}.kpm b{display:block;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--acc)}
+.kpm .kq{font-size:13px;line-height:1.4;margin:2px 0}.kpm .h{font-size:12px;color:var(--soft);font-style:italic}
+.kpm .ph2{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.kpm .ph2 button{border:1px dashed var(--line);background:none;color:var(--ink);border-radius:7px;padding:1px 7px;font-size:11.5px;cursor:pointer}
+.kpb{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
 .ich{display:flex;gap:6px;align-items:center;margin-bottom:8px}.ich input{flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px}
 .icl{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}.icl button{border:1px solid var(--line);background:none;color:var(--soft);border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600;cursor:pointer}.icl button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .icw{--z:#F2F2F2;--zs:#DCDCDC;--zi:#1F1F1F;--zc:#6E6E6E;margin:0 -4px}
@@ -152,13 +158,14 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 </style>
 </head>
 <body>
-<nav class="tabs" id="tabs"><button data-v="alev" aria-pressed="true">🔥 Alev</button><button data-v="baglam" aria-pressed="false">Bağlam</button><button data-v="dal" aria-pressed="false">Dal</button><button data-v="havuz" aria-pressed="false">Havuz</button><button data-v="ic" aria-pressed="false">Başlıklar</button></nav>
+<nav class="tabs" id="tabs"><button data-v="alev" aria-pressed="true">🔥 Alev</button><button data-v="baglam" aria-pressed="false">Bağlam</button><button data-v="dal" aria-pressed="false">Dal</button><button data-v="havuz" aria-pressed="false">Havuz</button><button data-v="ic" aria-pressed="false">Başlıklar</button><button data-v="kp" aria-pressed="false" title="Paragraf kalıpları">¶</button></nav>
 <div class="gbar" id="gbar"></div>
 <input type="file" id="fileIn" accept=".json,application/json" hidden>
 <section class="view pad" id="v-baglam"></section>
 <section class="view pad" id="v-dal"></section>
 <section class="view pad" id="v-havuz"></section>
 <section class="view pad" id="v-ic"></section>
+<section class="view pad" id="v-kp"></section>
 <section class="view on" id="v-alev">
 <div class="w cold" id="w">
   <div class="stage">
@@ -670,9 +677,42 @@ var G=(function(){
   return {gget:function(u){return gget(u);},ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
 window.__G=G;
-function gbar(){var b=$("gbar");if(UI.v==="alev"||UI.v==="ic"){b.classList.add("hide");return;}b.classList.remove("hide");
+function gbar(){var b=$("gbar");if(UI.v==="alev"||UI.v==="ic"||UI.v==="kp"){b.classList.add("hide");return;}b.classList.remove("hide");
   b.innerHTML=G.ok()?'<span>'+esc(G.status()||"☁ Drive'a bağlı")+'</span><button class="btn" data-gsync="1">↻</button>':'<span>'+esc(G.status()||"Veriler Drive'dan kendiliğinden gelsin mi?")+(G.whyTxt()?'<small style="display:block;opacity:.6">'+esc(G.whyTxt())+'</small>':'')+'</span><button class="btn pri" data-gconn="1">Google\'a bağlan</button>';}
 /* --- olaylar --- */
+/* --- Paragraf kalıpları (yukarıdan aşağı: yapı önce, cümleler en son) --- */
+var KP=[
+ {id:"arg",n:"Argüman",d:"Bir iddiayı kurup destekleyen standart paragraf (MEAL / PEEL: ana fikir, kanıt, yorum, bağ). Bölümlerin gövdesindeki paragrafların çoğu bu.",
+  m:[["Ana fikir","Paragrafın tek iddiası; okur sadece bu cümleyi okusa ne öğrenir?","Bağlam:Çerçeveleme ve vurgu"],["Açımlama","İddiadaki kavramı netleştir: ne kastediyorsun, hangi anlamda?","Bağlam:İsimleştirme ve eşdizim"],["Kanıt","Kaynak, veri ya da örnek: kim ne demiş, ne bulmuş?","Bağlam:Raporlama ve atıf"],["Yorum","Kanıt iddiayı nasıl destekliyor? Senin sesin burada.","Bağlam:Neden ve sonuç"],["Bağ","Bölümün argümanına ya da sonraki paragrafa köprü.","Bağlam:Bağlaç ve geçiş"]]},
+ {id:"bul",n:"Bulgu (nitel)",d:"Görüşme verisini sunan paragraf: iddia → bağlam → alıntı → yorum → literatürle konuşma. Alıntı paragrafı taşımamalı; yorum alıntıdan uzun olmalı.",
+  m:[["İddia","Bu verinin gösterdiği örüntü ne?","Bağlam:Çerçeveleme ve vurgu"],["Bağlam","Kim konuşuyor, hangi koşulda? (takma ad, yaş, deneyim)",""],["Alıntı","Görüşmeden kısa, çarpıcı bir kesit.",""],["Yorum","Alıntıda neyi görmeliyiz? Kavramla adlandır.","Bağlam:Neden ve sonuç"],["Literatürle bağ","Bu, X'in bulgusunu destekliyor mu, zorluyor mu?","Bağlam:Karşılaştırma ve karşıtlık"],["Geçiş","Sonraki örüntüye ya da vakaya köprü.","Bağlam:Bağlaç ve geçiş"]]},
+ {id:"lit",n:"Literatür sentezi",d:"Kaynakları tek tek özetlemek yerine bir tema etrafında konuşturan paragraf: tema → uzlaşı → ayrışma → sınır → boşluk.",
+  m:[["Tema","Bu paragrafın literatürde ele aldığı soru ya da tartışma.","Bağlam:Çerçeveleme ve vurgu"],["Uzlaşı","Kimler aynı yere varıyor? (X; Y; Z)","Bağlam:Raporlama ve atıf"],["Ayrışma","Nerede ayrılıyorlar, neden?","Bağlam:Karşılaştırma ve karşıtlık"],["Sınır","Bu literatürün görmediği ya da varsaydığı ne?","Bağlam:Temkin (hedging)"],["Boşluk / senin yerin","Senin çalışman bu tartışmaya nereden giriyor?","Bağlam:Amaç, boşluk ve katkı"]]},
+ {id:"kar",n:"Karşı görüş",d:"Güçlü bir karşı argümanı adil biçimde kurup kendi konumuna geçtiğin paragraf.",
+  m:[["Yaygın görüş","Karşı tarafın en güçlü hâli.","Bağlam:Raporlama ve atıf"],["Haklı olduğu yer","Neyi doğru görüyor?","Bağlam:Temkin (hedging)"],["Sınırı","Nerede yetersiz kalıyor?","Bağlam:Karşılaştırma ve karşıtlık"],["Senin konumun","Senin argümanın bunu nasıl aşıyor?","Bağlam:Çerçeveleme ve vurgu"]]},
+ {id:"ac",n:"Bölüm açılışı",d:"Bölümün ilk paragrafı: okuru bağlama yerleştirip bölümün iddiasını ve yolunu söyler.",
+  m:[["Bağlam","Bölümün konuştuğu genel durum ya da tartışma.",""],["Problem","Neyi açıklamak gerekiyor, neden önemli?","Bağlam:Amaç, boşluk ve katkı"],["Bölümün iddiası","Bu bölüm sonunda okur neye ikna olmuş olacak?","Bağlam:Çerçeveleme ve vurgu"],["Yol haritası","Önce …, ardından …, son olarak …","Bağlam:Bağlaç ve geçiş"]]},
+ {id:"son",n:"Bölüm sonu",d:"Bölümü kapatan paragraf: özet değil, sentez; sonraki bölüme kapı açar.",
+  m:[["Sentez","Bölümün argümanı tek cümlede, yeni bir şey olarak.","Bağlam:Çerçeveleme ve vurgu"],["Katkı","Bu, tezin büyük sorusuna ne ekledi?","Bağlam:Amaç, boşluk ve katkı"],["Sınır / açık soru","Neyi henüz çözmedik?","Bağlam:Sınırlılık ve öneri"],["Sonraki bölüm","Bir sonraki bölüm buradan nasıl devralıyor?","Bağlam:Bağlaç ve geçiş"]]}
+];
+function kpPhr(tag){if(!tag||!B||!B.list)return [];var cat=tag.replace(/^Bağlam:/,"");return B.list.filter(function(x){return x.cat===cat;}).sort(function(a,b){return (b.n||0)-(a.n||0);}).slice(0,4);}
+function kpLines(k,num){return k.m.map(function(m,i){return (num?"¶ "+k.n+" · ":"")+"["+m[0]+"] …";});}
+function renderKP(){var el=$("v-kp"),k=KP.find(function(x){return x.id===UI.kp;})||KP[0];
+  var h='<div class="kpd">Önce yapı, cümleler en son. Bir kalıp seç, Word\'e boş iskeletini ekle; köşeli parantezdeki her hamleyi kendi cümlenle doldur.</div>';
+  h+='<div class="kpt">'+KP.map(function(x){return '<button data-kp="'+x.id+'" aria-pressed="'+(x.id===k.id)+'">'+esc(x.n)+'</button>';}).join("")+'</div>';
+  h+='<div class="kpd">'+esc(k.d)+'</div>';
+  h+='<div class="kpb"><button class="btn pri" data-kpins="1">¶ İskeleti Word\'e ekle</button><button class="btn" data-kpins="3">3 paragraf</button></div>';
+  k.m.forEach(function(m){var ph=kpPhr(m[2]);h+='<div class="kpm"><b>'+esc(m[0])+'</b><div class="kq">'+esc(m[1])+'</div>'+(ph.length?'<div class="ph2">'+ph.map(function(x){return '<button data-kpp="'+esc(x.p)+'" title="'+esc(x.tr||"")+' · imlecin olduğu yere ekle" lang="en">'+esc(x.p)+'</button>';}).join("")+'</div>':'')+'</div>';});
+  h+='<div class="hint">İfadeler senin Bağlam\'ındaki kayıtlardan, hamleye uyan kategoriden geliyor; tıklayınca imlecin olduğu yere eklenir.</div>';
+  el.innerHTML=h;}
+function kpInsert(n,btn){var k=KP.find(function(x){return x.id===UI.kp;})||KP[0];if(!window.Word)return;
+  Word.run(function(ctx){var p=ctx.document.getSelection().paragraphs.getLast();
+    for(var r=0;r<n;r++){var first=true;k.m.forEach(function(m){p=p.insertParagraph((first?"¶ "+k.n+(n>1?" "+(r+1):"")+" — ":"")+"["+m[0]+"] …","After");first=false;p.styleBuiltIn=Word.Style?Word.Style.normal:"Normal";p.font.italic=true;p.font.color="#8A8A8A";});
+      if(r<n-1){p=p.insertParagraph("","After");p.font.italic=false;}}
+    return ctx.sync().then(function(){try{p.getRange("End").select();}catch(e){}return ctx.sync();});})
+  .then(function(){if(btn){var o=btn.textContent;btn.textContent="✓ eklendi";setTimeout(function(){btn.textContent=o;},1400);}},function(){if(btn){var o=btn.textContent;btn.textContent="eklenemedi";setTimeout(function(){btn.textContent=o;},1600);}});}
+document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var a=t.closest("[data-kp]");if(a){UI.kp=a.getAttribute("data-kp");saveUI();renderKP();return;}
+  var b=t.closest("[data-kpins]");if(b){kpInsert(+b.getAttribute("data-kpins"),b);return;}var c=t.closest("[data-kpp]");if(c){insert(c.getAttribute("data-kpp"),c);return;}});
 /* --- Başlıklar (içindekiler) --- */
 var IC={list:null,busy:false,err:"",q:"",max:9,at:-1,doc:"",send:null};
 function icSend(){if(!IC.list||!IC.list.length)return;if(!G.canWrite()){IC.send={err:"Önce Dal sekmesinden Google'a bağlan."};renderIC();return;}
@@ -729,7 +769,7 @@ document.addEventListener("click",function(e){var t=e.target;if(!t.closest)retur
   var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icsend")){icSend();}});
 document.addEventListener("change",function(e){var b=e.target&&e.target.getAttribute&&e.target.getAttribute("data-bf");if(b){UI[b]=e.target.value;saveUI();renderB();}});
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="icq"){IC.q=e.target.value;renderIC();}});
-function show(v,user){UI.v=v;window.__view=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev"&&v!=="ic")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz","ic"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();if(v==="ic")renderIC(true);gbar();if(v!=="alev"&&v!=="ic")G.sync(false);}
+function show(v,user){UI.v=v;window.__view=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev"&&v!=="ic"&&v!=="kp")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz","ic","kp"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();if(v==="ic")renderIC(true);if(v==="kp")renderKP();gbar();if(v!=="alev"&&v!=="ic"&&v!=="kp")G.sync(false);}
 $("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.v,1);});
 document.addEventListener("click",function(e){var t=e.target;
   var ld=t.closest&&t.closest("[data-load]");if(ld){pick(ld.getAttribute("data-load"));return;}
