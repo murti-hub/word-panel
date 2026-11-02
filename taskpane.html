@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="51",ALEV_OFF=false;
+var ALEV_VER="52",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -73,6 +73,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-s
 .icr.z{background:var(--z)}.icr.at{background:var(--zs)}
 .icr .chv{flex:none;width:16px;text-align:center;color:var(--zc);font-size:11px}
 .icr .ict{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.icr .icp{flex:none;margin-left:6px;padding-right:6px;font-size:11px;color:var(--zc);font-variant-numeric:tabular-nums}
 .icm{font-size:12px;color:var(--soft);margin:6px 0}
 .pad{padding:12px 12px 24px}
 .empty{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--soft);font-size:13px}
@@ -688,7 +689,13 @@ function icLoad(){if(IC.busy||!window.Word)return;IC.busy=true;IC.err="";renderI
       if(ol>ps.items.length*0.4)idx=idx.filter(function(x){return !x[2];});
       idx=idx.slice(0,600);var li=[];idx.forEach(function(x){var p=ps.items[x[0]];p.load("text");var l=null;try{l=p.listItemOrNullObject;l.load("listString");}catch(e){l=null;}li.push(l);});
       return ctx.sync().then(function(){IC.list=idx.map(function(x,k){var l=li[k],n="";try{if(l&&!l.isNullObject)n=String(l.listString||"").trim();}catch(e){}
-        return {lv:x[1],n:n,t:String(ps.items[x[0]].text||"").replace(/\s+/g," ").trim()};}).filter(function(x){return x.t;});IC.doc=ps.items.length;});});})
+        return {lv:x[1],n:n,t:String(ps.items[x[0]].text||"").replace(/\s+/g," ").trim(),_i:x[0]};}).filter(function(x){return x.t;});IC.doc=ps.items.length;
+        var pgOk=false;try{pgOk=Office.context.requirements.isSetSupported("WordApiDesktop","1.2");}catch(e){}
+        if(!pgOk){IC.pg=0;return;}
+        var pcs=IC.list.map(function(x){var c=ps.items[x._i].getRange("Start").pages;c.load("items/index");return c;}),endc=ctx.document.body.getRange("End").pages;endc.load("items/index");
+        return ctx.sync().then(function(){var last=endc.items.length?endc.items[0].index:0;
+          IC.list.forEach(function(x,k){x.p=pcs[k].items.length?pcs[k].items[0].index:0;});
+          IC.list.forEach(function(x,k){var e=last;for(var j=k+1;j<IC.list.length;j++){if(IC.list[j].lv<=x.lv){var np=IC.list[j].p;e=np>x.p?(IC.list[j].lv===1?np-1:np):x.p;break;}}x.pe=Math.max(x.p,e);});IC.pg=1;},function(){IC.pg=0;});});});})
   .catch(function(e){IC.err="Başlıklar okunamadı: "+(e&&e.message||e);}).then(function(){IC.busy=false;renderIC();});}
 function icGo(k){var it=IC.list&&IC.list[k];if(!it||!window.Word)return;var key=it.t.slice(0,200),nth=0;for(var i=0;i<k;i++)if(IC.list[i].t.slice(0,200)===key)nth++;
   IC.at=k;renderIC();
@@ -712,11 +719,11 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
     var hasKid=function(k){return k+1<L.length&&L[k+1].lv>L[k].lv;},minLv=Math.min.apply(null,L.map(function(x){return x.lv;}));
     L.forEach(function(x,k){if(hide&&x.lv>hide)return;hide=0;if(x.lv>IC.max&&!q)return;if(q&&((x.n||"")+" "+x.t).toLowerCase().indexOf(q)<0)return;
       var kid=hasKid(k),cl=!q&&closed[x.lv+"|"+x.t];if(kid&&cl)hide=x.lv;
-      rows+='<div class="icr'+(n%2?"":" z")+(k===IC.at?" at":"")+'" data-ic="'+k+'" style="padding-left:'+(4+(x.lv-minLv)*16)+'px" title="'+esc((x.n?x.n+" ":"")+x.t)+'"><span class="chv"'+(kid?' data-icx="'+k+'"':'')+'>'+(kid?(cl?"›":"⌄"):"")+'</span><span class="ict">'+esc((x.n?x.n+" ":"")+x.t)+'</span></div>';n++;});
+      rows+='<div class="icr'+(n%2?"":" z")+(k===IC.at?" at":"")+'" data-ic="'+k+'" style="padding-left:'+(4+(x.lv-minLv)*16)+'px" title="'+esc((x.n?x.n+" ":"")+x.t)+'"><span class="chv"'+(kid?' data-icx="'+k+'"':'')+'>'+(kid?(cl?"›":"⌄"):"")+'</span><span class="ict">'+esc((x.n?x.n+" ":"")+x.t)+'</span>'+(x.p?'<span class="icp" title="'+(x.pe>x.p?x.p+"–"+x.pe+". sayfalar ("+(x.pe-x.p+1)+" sayfa)":x.p+". sayfa")+'">'+(x.pe>x.p?x.p+"–"+x.pe:x.p)+'</span>':'')+'</div>';n++;});
     h+='<div class="icw">'+rows+'</div>';
     if(!IC.list.length)h+='<div class="empty"><b>Başlık bulunamadı</b>Belgede “Başlık 1, 2, 3…” (Heading) stilleri kullanılmamış gibi. Başlıklarına bu stilleri verirsen burada listelenir.</div>';
     else if(!n)h+='<div class="icm">Eşleşen başlık yok.</div>';
-    else h+='<div class="icm">'+IC.list.length+' başlık · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
+    else h+='<div class="icm">'+IC.list.length+' başlık'+(IC.pg===0?' · bu Word sürümü sayfa numarası vermiyor':'')+' · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
 document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var cx=t.closest("[data-icx]");if(cx){var ck=IC.list[+cx.getAttribute("data-icx")],kk=ck.lv+"|"+ck.t;IC.closed=IC.closed||{};IC.closed[kk]=!IC.closed[kk];renderIC();return;}var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
   var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icsend")){icSend();}});
