@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="54",ALEV_OFF=false;
+var ALEV_VER="55",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -443,8 +443,8 @@ function srcLine(x,kind){return (x.src==="drive"?"☁ Drive'dan":"dosyadan")+" �
 var bq="";
 var KNM=new WeakMap();function bKonum(x){if(KNM.has(x))return KNM.get(x);var out=[],pl=String(x.p||"").toLowerCase();(x.ex||[]).forEach(function(e){var t=String(e.s||""),i=t.toLowerCase().indexOf(pl);if(i<0)return;
   var pre=t.slice(0,i).replace(/^[\s"'“‘(\[\d.]+/,""),post=t.slice(i+pl.length).replace(/[\s.,;:!?)"'’”\]\d]+$/,""),k=!pre?"Cümle başı":!post?"Cümle sonu":"Cümle içi";if(out.indexOf(k)<0)out.push(k);});KNM.set(x,out);return out;}
-function bTur(x){var p=String(x.pos||"").toLowerCase();if(!p)return "";if(/bağlaç|geçiş/.test(p))return "Bağlaç";if(/kalıp|cümle/.test(p))return "Kalıp";if(/fiil/.test(p))return "Fiil öbeği";if(/edat/.test(p))return "Edat öbeği";if(/isim/.test(p))return "İsim öbeği";if(/zarf/.test(p))return "Zarf";if(/sıfat/.test(p))return "Sıfat";return "Diğer";}
-var BSEC=["Giriş","Literatür","Kuram","Yöntem","Bulgular","Tartışma","Sonuç"],BKON=["Cümle başı","Cümle içi","Cümle sonu"],BTUR=["Bağlaç","Kalıp","Fiil öbeği","İsim öbeği","Edat öbeği","Zarf","Sıfat","Diğer"];
+function bTur(x){var p=String(x.pos||"").toLowerCase();if(!p)return "";if(/bağlaç|geçiş|zarf/.test(p))return "Bağlaç / zarf";if(/kalıp|cümle/.test(p))return "Kalıp";if(/fiil/.test(p))return "Fiil öbeği";if(/edat/.test(p))return "Edat öbeği";if(/isim/.test(p))return "İsim öbeği";if(/sıfat/.test(p))return "Sıfat";return "Diğer";}
+var BSEC=["Giriş","Literatür","Kuram","Yöntem","Bulgular","Tartışma","Sonuç"],BKON=["Cümle başı","Cümle içi","Cümle sonu"],BTUR=["Bağlaç / zarf","Kalıp","Fiil öbeği","İsim öbeği","Edat öbeği","Sıfat","Diğer"];
 function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");return;}
   var cats=[];B.list.forEach(function(x){if(x.cat&&cats.indexOf(x.cat)<0)cats.push(x.cat);});
   var f=fold(bq.trim());var L=B.list.filter(function(x){if(UI.cat&&x.cat!==UI.cat)return false;if(UI.bsec&&(x.sec||[]).indexOf(UI.bsec)<0)return false;if(UI.bkon&&bKonum(x).indexOf(UI.bkon)<0)return false;if(UI.btur&&bTur(x)!==UI.btur)return false;
@@ -457,7 +457,7 @@ function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");re
   if(head)el.innerHTML=head;
   var hasSec=B.list.some(function(x){return x.sec&&x.sec.length;}),hasTur=B.list.some(function(x){return x.pos;});
   var sel=function(id,lab,opts,v){return '<select data-bf="'+id+'" class="'+(v?"on":"")+'"><option value="">'+lab+'</option>'+opts.map(function(o){return '<option'+(o===v?" selected":"")+'>'+esc(o)+'</option>';}).join("")+'</select>';};
-  $("bfx").innerHTML=(hasSec?sel("bsec","Bölüm: hepsi",BSEC,UI.bsec):"")+sel("bkon","Konum: hepsi",BKON,UI.bkon)+(hasTur?sel("btur","Tür: hepsi",BTUR,UI.btur):"");
+  $("bfx").innerHTML=(hasSec?sel("bsec","Bölüm: hepsi ("+B.list.filter(function(x){return x.sec&&x.sec.length;}).length+"/"+B.list.length+" etiketli)",BSEC,UI.bsec):"")+sel("bkon","Konum: hepsi",BKON,UI.bkon)+(hasTur?sel("btur","Tür: hepsi",BTUR,UI.btur):"");
   $("bcats").innerHTML='<button data-cat="" aria-pressed="'+(!UI.cat)+'">Hepsi</button>'+cats.map(function(c){return'<button data-cat="'+esc(c)+'" aria-pressed="'+(UI.cat===c)+'">'+esc(c)+'</button>';}).join("");
   $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam?'<span style="opacity:.5">↳ </span>':'')+esc(x.p)+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+'<div>'+(x.sec||[]).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+bKonum(x).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+(bTur(x)&&bTur(x)!=="Diğer"?'<span class="tg">'+esc(bTur(x))+'</span>':'')+'</div>'+
     '<div class="more">'+(x.frame?'<div class="fr" lang="en">'+esc(x.frame)+'</div>':'')+(x.before||x.after?'<div class="cell">'+(x.before?'<b>Öncesinde</b>'+esc(x.before):'')+(x.after?'<b>Sonrasında</b>'+esc(x.after):'')+'</div>':'')+
