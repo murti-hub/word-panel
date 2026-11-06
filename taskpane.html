@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="56",ALEV_OFF=false;
+var ALEV_VER="57",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -414,7 +414,11 @@ var KZ="alev-data-bz",ZI=[];try{ZI=JSON.parse(localStorage.getItem(KZ)||"[]")||[
 function takeZ(o){if(!o||!Array.isArray(o.items))return false;var d=function(v){try{return decodeURIComponent(String(v||""));}catch(e){return String(v||"");}};
   var m={};ZI.forEach(function(z){m[z.at+"|"+z.s]=z;});o.items.forEach(function(it){var z={s:d(it.s).trim(),p:d(it.p).trim(),src:d(it.src),at:+it.at||0};if(z.s&&z.p)m[z.at+"|"+z.s]=z;});
   ZI=Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return a.at-b.at;}).slice(-800);try{localStorage.setItem(KZ,JSON.stringify(ZI));}catch(e){}mergeZ();return true;}
-function mergeZ(){if(!B||!B.list)return;var base=B.zbase||B.at||0;B.zbase=base;var n=0;
+function applyEk(){var ek=null;try{ek=JSON.parse(localStorage.getItem("alev-data-bek")||"null");}catch(e){}if(!ek||!B||!B.list)return;var n=0;
+  B.list.forEach(function(x){var v=ek[String(x.p).toLowerCase()];if(!v)return;for(var f in v){var cur=x[f];if((cur==null||cur===""||(Array.isArray(cur)&&!cur.length))&&v[f]!=null){x[f]=v[f];n++;}}});
+  if(n){try{localStorage.setItem(KB,JSON.stringify(B));}catch(e){}}}
+setTimeout(function(){applyEk();},300);
+function mergeZ(){applyEk();if(!B||!B.list)return;var base=B.zbase||B.at||0;B.zbase=base;var n=0;
   ZI.forEach(function(z){if(z.at<=base)return;var k=z.p.toLowerCase(),x=null;for(var i=0;i<B.list.length;i++){if(String(B.list[i].p).toLowerCase()===k){x=B.list[i];break;}}
     if(x){if(x.ex.some(function(e){return e.s===z.s;}))return;x.ex.unshift({s:z.s,src:z.src});x.n=(x.n||0)+1;n++;}
     else{B.list.unshift({p:z.p,n:1,ex:[{s:z.s,src:z.src}],tr:"",fn:"",cat:"",move:"",frame:"",before:"",after:"",alts:[],roles:[],z:1});n++;}});
@@ -650,10 +654,10 @@ var G=(function(){
   var busyAt=0;
   function sync(force){if(busy&&Date.now()-busyAt>45000)busy=false;if(!ok()||busy)return;busyAt=Date.now();if(!force&&Date.now()-lastAt<60000)return;busy=true;lastAt=Date.now();status="☁ Drive'dan kontrol ediliyor…";gbar();
     var ym=function(k){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-k);return "baglam-zotero-"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+".json";};
-    var names=["alev-baglam.json","alev-agac.json","alev-havuz.json",ym(1),ym(0)],got=0,rep=[];if(force)seen={};
+    var names=["alev-baglam.json","alev-agac.json","alev-havuz.json",ym(1),ym(0),"alev-baglam-ek.json"],got=0,rep=[];if(force)seen={};
     var hm=function(t){return t?new Date(t).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):"?";},lab={"alev-baglam.json":"Bağlam","alev-agac.json":"Ağaç","alev-havuz.json":"Havuz"};
     function rerender(){if(got){if(UI.v==="baglam")renderB();if(UI.v==="dal")renderD();if(UI.v==="havuz")renderH();}}
-    Promise.all(names.map(function(n){return pull(n).then(function(o){if(/^baglam-zotero/.test(n)){if(o&&o!=="same"&&takeZ(o))got++;return;}if(o===null)rep.push(lab[n]+" yok");else if(o==="same")rep.push(lab[n]+" "+hm(seenAt[n]));else if(take(o,"drive")){got++;rep.push(lab[n]+" "+hm(seenAt[n]));}else rep.push(lab[n]+" okunamadı");},function(e){rep.push(lab[n]+" hata "+(e&&e.code||""));if(e&&(e.code===401||e.code==="net"))throw e;});}))
+    Promise.all(names.map(function(n){return pull(n).then(function(o){if(/^baglam-zotero/.test(n)){if(o&&o!=="same"&&takeZ(o))got++;return;}if(n==="alev-baglam-ek.json"){if(o&&o!=="same"&&o.info){try{localStorage.setItem("alev-data-bek",JSON.stringify(o.info));}catch(e){}applyEk();got++;}return;}if(o===null)rep.push(lab[n]+" yok");else if(o==="same")rep.push(lab[n]+" "+hm(seenAt[n]));else if(take(o,"drive")){got++;rep.push(lab[n]+" "+hm(seenAt[n]));}else rep.push(lab[n]+" okunamadı");},function(e){rep.push(lab[n]+" hata "+(e&&e.code||""));if(e&&(e.code===401||e.code==="net"))throw e;});}))
       .then(function(){busy=false;status="☁ son kontrol "+hm(Date.now())+(force?" · "+rep.join(", "):"");gbar();rerender();},
             function(e){busy=false;status=e&&e.code==="net"?"☁ Drive'a ulaşılamadı · ↻ ile tekrar dene":"";gbar();rerender();});}
   setInterval(function(){if(UI.v!=="alev"&&!document.hidden)sync(false);},120000);
