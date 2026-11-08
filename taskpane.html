@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="61",ALEV_OFF=false;
+var ALEV_VER="62",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -746,8 +746,13 @@ function icLoad(){if(IC.busy||!window.Word)return;IC.busy=true;IC.err="";renderI
 function icRoman(n){var v=[[1000,"m"],[900,"cm"],[500,"d"],[400,"cd"],[100,"c"],[90,"xc"],[50,"l"],[40,"xl"],[10,"x"],[9,"ix"],[5,"v"],[4,"iv"],[1,"i"]],o="";if(n<=0)return String(n);v.forEach(function(q){while(n>=q[0]){o+=q[1];n-=q[0];}});return o;}
 function icSecs(ctx){var ss=ctx.document.sections;ss.load("items");return ctx.sync().then(function(){if(!ss.items.length)return;var rs=ss.items.slice(0,60).map(function(sc){var r=sc.body.getRange("Start");var pg=r.pages;pg.load("items/index");return {pg:pg,ox:r.getOoxml()};});
   return ctx.sync().then(function(){var L=[];rs.forEach(function(x){var st=x.pg.items.length?x.pg.items[0].index:0;var o=String(x.ox.value||""),i=o.lastIndexOf("<w:sectPr"),sp=i>=0?o.slice(i,o.indexOf("</w:sectPr>",i)+11):"",m=sp.match(/<w:pgNumType\b[^>]*>/),t=m?m[0]:"",f=(t.match(/w:fmt="([^"]+)"/)||[])[1]||"decimal",sv=(t.match(/w:start="(\d+)"/)||[])[1];if(st)L.push({st:st,fmt:f,start:sv!=null?+sv:null});});
-    L.sort(function(a,b){return a.st-b.st;});if(!L.length)return;if(L[0].start==null)L[0].start=1;IC.secs=L;icApplyNum();});}).catch(function(){});}
-function icPageLabel(i){var L=IC.secs;if(!L||!L.length||!i)return String(i||"");var cur=null;for(var k=0;k<L.length;k++){var s=L[k];s.base=s.start!=null?s.start:(cur?cur.base+(s.st-cur.st):1);if(s.st>i)break;cur=s;}if(!cur)cur=L[0];var n=cur.base+(i-cur.st),f=cur.fmt||"";return /roman/i.test(f)?(/^upper/i.test(f)?icRoman(n).toUpperCase():icRoman(n)):String(n);}
+    L.sort(function(a,b){return a.st-b.st;});if(!L.length)return;if(L[0].start==null)L[0].start=1;IC.secs=L;});}).catch(function(){}).then(icApplyNum);}
+function icDk(){var u="";try{u=Office.context.document.url||"";}catch(e){}u=decodeURIComponent(String(u).split(/[\\/]/).pop()||"").replace(/\.docx?$/i,"");return u||"belge";}
+function icOffs(){try{return JSON.parse(localStorage.getItem("alev-pgoff")||"{}")||{};}catch(e){return {};}}
+function icOffSet(n){var o=icOffs();if(n)o[icDk()]=n;else delete o[icDk()];try{localStorage.setItem("alev-pgoff",JSON.stringify(o));}catch(e){}}
+function icManual(){var n=icOffs()[icDk()];return n>1?[{st:1,fmt:"lowerRoman",start:1},{st:n,fmt:"decimal",start:1}]:null;}
+function icHere(){if(!window.Word)return;Word.run(function(ctx){var pg=ctx.document.getSelection().pages;pg.load("items/index");return ctx.sync().then(function(){var n=pg.items.length?pg.items[0].index:0;if(!n){IC.pgmsg="Sayfa okunamadı.";return;}icOffSet(n);IC.pgset=false;IC.pgmsg="";icApplyNum();});}).catch(function(){IC.pgmsg="Sayfa okunamadı; Word sürümün bunu desteklemiyor olabilir.";}).then(function(){renderIC();});}
+function icPageLabel(i){var L=icManual()||IC.secs;if(!L||!L.length||!i)return String(i||"");var cur=null;for(var k=0;k<L.length;k++){var s=L[k];s.base=s.start!=null?s.start:(cur?cur.base+(s.st-cur.st):1);if(s.st>i)break;cur=s;}if(!cur)cur=L[0];var n=cur.base+(i-cur.st),f=cur.fmt||"";return /roman/i.test(f)?(/^upper/i.test(f)?icRoman(n).toUpperCase():icRoman(n)):String(n);}
 function icApplyNum(){(IC.list||[]).forEach(function(x){if(x.p){x.pl=icPageLabel(x.p);x.pel=icPageLabel(x.pe);}});}
 function icGo(k){var it=IC.list&&IC.list[k];if(!it||!window.Word)return;var key=it.t.slice(0,200),nth=0;for(var i=0;i<k;i++)if(IC.list[i].t.slice(0,200)===key)nth++;
   IC.at=k;renderIC();
@@ -760,7 +765,8 @@ function icGo(k){var it=IC.list&&IC.list[k];if(!it||!window.Word)return;var key=
 setInterval(function(){if(UI.v==="ic"&&!document.hidden&&!(document.activeElement&&document.activeElement.id==="icq"))icLoad();},60000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&UI.v==="ic")icLoad();});
 function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoad();return;}setTimeout(icLoad,0);}
-  var h='<div class="ich"><input id="icq" placeholder="Başlıklarda ara…" value="'+esc(IC.q)+'"><button class="btn" id="icr" title="Belgeden yeniden oku">↻</button></div>';
+  var h='<div class="ich"><input id="icq" placeholder="Başlıklarda ara…" value="'+esc(IC.q)+'"><button class="btn" id="icpg" title="Sayfa numaralarını Word\'deki gibi ayarla (romen ön kısım)">#</button><button class="btn" id="icr" title="Belgeden yeniden oku">↻</button></div>';
+  if(IC.pgset){var mo=icOffs()[icDk()];h+='<div class="icm" style="line-height:1.5">'+(mo?'Şu an: arap rakamıyla 1. sayfa = Word\'ün '+mo+'. sayfası; öncesi romen (i, ii…).<br>':'')+'Word\'de imleci arap rakamıyla <b>1. sayfa</b> olan sayfaya koy (ör. Giriş\'in ilk sayfası), sonra:<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="icpgh">Bu sayfa 1. sayfa</button>'+(mo?'<button class="btn" id="icpgx">Sıfırla</button>':'')+'<button class="btn" id="icpgc">Kapat</button></div>'+(IC.pgmsg?'<div style="margin-top:4px">'+esc(IC.pgmsg)+'</div>':'')+'</div>';}
   var lvls={};(IC.list||[]).forEach(function(x){lvls[x.lv]=1;});var ks=Object.keys(lvls).map(Number).sort();
   if(ks.length>1){h+='<div class="icl">'+ks.map(function(l){return '<button data-icm="'+l+'" aria-pressed="'+(IC.max===l)+'">'+(l===1?"1":"1–"+l)+'</button>';}).join("")+'<button data-icm="9" aria-pressed="'+(IC.max>=ks[ks.length-1])+'">Hepsi</button></div>';}
   if(IC.list&&IC.list.length){var pjs=(A&&A.projects)||[],cp=proj();h+='<div class="ich">'+(pjs.length>1?'<select id="icpj" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:5px;font-size:12px">'+pjs.map(function(p){return '<option value="'+esc(p.id)+'"'+(cp&&cp.id===p.id?" selected":"")+'>'+esc(p.name||"Proje")+'</option>';}).join("")+'</select>':'')+'<button class="btn" id="icsend" title="Word\'deki başlık sırasını, adlarını ve düzeylerini Yazı ağacına işler; dallardaki notlar ve alıntılar yerinde kalır">↗ Yazı ağacına aktar</button></div>';
@@ -778,7 +784,7 @@ function renderIC(first){var el=$("v-ic");if(first&&!IC.busy){if(!IC.list){icLoa
     else h+='<div class="icm">'+IC.list.length+' başlık'+(IC.pg===0?' · bu Word sürümü sayfa numarası vermiyor':'')+' · tıkla, Word o başlığa gider. Sekmeye her gelişte ve açıkken dakikada bir kendini yeniler.</div>';}
   var foc=document.activeElement&&document.activeElement.id==="icq",pos=foc?document.activeElement.selectionStart:0;el.innerHTML=h;if(foc){var qi=$("icq");qi.focus();try{qi.setSelectionRange(pos,pos);}catch(e){}}}
 document.addEventListener("click",function(e){var t=e.target;if(!t.closest)return;var cx=t.closest("[data-icx]");if(cx){var ck=IC.list[+cx.getAttribute("data-icx")],kk=ck.lv+"|"+ck.t;IC.closed=IC.closed||{};IC.closed[kk]=!IC.closed[kk];renderIC();return;}var b=t.closest("[data-ic]");if(b){icGo(+b.getAttribute("data-ic"));return;}
-  var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icsend")){icSend();}});
+  var m=t.closest("[data-icm]");if(m){IC.max=+m.getAttribute("data-icm");renderIC();return;}if(t.closest("#icr")){icLoad();}if(t.closest("#icpg")){IC.pgset=!IC.pgset;IC.pgmsg="";renderIC();return;}if(t.closest("#icpgc")){IC.pgset=false;renderIC();return;}if(t.closest("#icpgh")){icHere();return;}if(t.closest("#icpgx")){icOffSet(0);IC.pgset=false;icApplyNum();renderIC();return;}if(t.closest("#icsend")){icSend();}});
 document.addEventListener("change",function(e){var b=e.target&&e.target.getAttribute&&e.target.getAttribute("data-bf");if(b){UI[b]=e.target.value;saveUI();renderB();}});
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="icq"){IC.q=e.target.value;renderIC();}});
 function show(v,user){UI.v=v;window.__view=v;saveUI();if(v==="alev"&&window.alevPaint){try{alevPaint();}catch(e){}}if(user&&v!=="alev"&&v!=="ic"&&v!=="kp")G.poke();Array.prototype.forEach.call($("tabs").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.v===v));});["alev","baglam","dal","havuz","ic","kp"].forEach(function(x){$("v-"+x).classList.toggle("on",x===v);});if(v==="baglam")renderB();if(v==="dal")renderD();if(v==="havuz")renderH();if(v==="ic")renderIC(true);if(v==="kp")renderKP();gbar();if(v!=="alev"&&v!=="ic"&&v!=="kp")G.sync(false);}
