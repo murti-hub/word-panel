@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="59",ALEV_OFF=false;
+var ALEV_VER="60",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -414,7 +414,7 @@ var KH="alev-data-havuz",H=null;try{H=JSON.parse(localStorage.getItem(KH)||"null
 var KZ="alev-data-bz",ZI=[];try{ZI=JSON.parse(localStorage.getItem(KZ)||"[]")||[];}catch(e){}
 function takeZ(o){if(!o||!Array.isArray(o.items))return false;var d=function(v){try{return decodeURIComponent(String(v||""));}catch(e){return String(v||"");}};
   var m={};ZI.forEach(function(z){m[z.at+"|"+z.s]=z;});o.items.forEach(function(it){var z={s:d(it.s).trim(),p:d(it.p).trim(),src:d(it.src),at:+it.at||0};if(z.s&&z.p)m[z.at+"|"+z.s]=z;});
-  ZI=Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return a.at-b.at;}).slice(-800);try{localStorage.setItem(KZ,JSON.stringify(ZI));}catch(e){}mergeZ();return true;}
+  ZI=Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return a.at-b.at;}).slice(-3000);try{localStorage.setItem(KZ,JSON.stringify(ZI));}catch(e){}mergeZ();return true;}
 function applyEk(){var ek=null;try{ek=JSON.parse(localStorage.getItem("alev-data-bek")||"null");}catch(e){}if(!ek||!B||!B.list)return;var n=0;
   B.list.forEach(function(x){var v=ek[String(x.p).toLowerCase()];if(!v)return;for(var f in v){var cur=x[f];if((cur==null||cur===""||(Array.isArray(cur)&&!cur.length))&&v[f]!=null){x[f]=v[f];n++;}}});
   if(n){try{localStorage.setItem(KB,JSON.stringify(B));}catch(e){}}}
@@ -464,10 +464,10 @@ function renderB(){var el=$("v-baglam");if(!B){el.innerHTML=loadBox("baglam");re
   var sel=function(id,lab,opts,v){return '<select data-bf="'+id+'" class="'+(v?"on":"")+'"><option value="">'+lab+'</option>'+opts.map(function(o){return '<option'+(o===v?" selected":"")+'>'+esc(o)+'</option>';}).join("")+'</select>';};
   $("bfx").innerHTML=(hasSec?sel("bsec","Bölüm: hepsi ("+B.list.filter(function(x){return x.sec&&x.sec.length;}).length+"/"+B.list.length+" etiketli)",BSEC,UI.bsec):"")+sel("bkon","Konum: hepsi",BKON,UI.bkon)+(hasTur?sel("btur","Tür: hepsi",BTUR,UI.btur):"");
   $("bcats").innerHTML='<button data-cat="" aria-pressed="'+(!UI.cat)+'">Hepsi</button>'+cats.map(function(c){return'<button data-cat="'+esc(c)+'" aria-pressed="'+(UI.cat===c)+'">'+esc(c)+'</button>';}).join("");
-  $("blist").innerHTML=L.slice(0,150).map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam&&byP[x.fam]?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam&&byP[x.fam]?'<span style="opacity:.5">↳ </span>':'')+(x.tpl?esc(x.tpl).replace(/(^|\s)([XYZ])(?=$|[\s,.;:)])/g,'$1<span class="slot">$2</span>'):esc(x.p))+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+'<div>'+(x.sec||[]).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+bKonum(x).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+(bTur(x)&&bTur(x)!=="Diğer"?'<span class="tg">'+esc(bTur(x))+'</span>':'')+'</div>'+
+  $("blist").innerHTML=L.map(function(x,i){var id=B.list.indexOf(x);return'<div class="ph" data-i="'+id+'"'+(x.fam&&byP[x.fam]?' style="margin-left:14px;border-left:2px solid var(--line);padding-left:8px"':'')+'><div class="h"><b data-tog="1" lang="en">'+(x.fam&&byP[x.fam]?'<span style="opacity:.5">↳ </span>':'')+(x.tpl?esc(x.tpl).replace(/(^|\s)([XYZ])(?=$|[\s,.;:)])/g,'$1<span class="slot">$2</span>'):esc(x.p))+'</b>'+(x.tr?'<i>'+esc(x.tr)+'</i>':(x.z?'<i style="color:var(--acc)">Zotero · yeni</i>':''))+'<button class="ins" data-ins="'+id+'" title="İmlecin olduğu yere ekle">＋</button></div>'+(x.fn?'<div class="fn">'+esc(x.fn)+'</div>':'')+'<div>'+(x.sec||[]).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+bKonum(x).map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join("")+(bTur(x)&&bTur(x)!=="Diğer"?'<span class="tg">'+esc(bTur(x))+'</span>':'')+'</div>'+
     '<div class="more">'+(x.tpl?'<div class="fr" lang="en" style="font-size:11.5px;opacity:.75">örnek: '+esc(x.p)+'</div>':'')+(x.frame?'<div class="fr" lang="en">'+esc(x.frame)+'</div>':'')+(x.before||x.after?'<div class="cell">'+(x.before?'<b>Öncesinde</b>'+esc(x.before):'')+(x.after?'<b>Sonrasında</b>'+esc(x.after):'')+'</div>':'')+
     x.ex.map(function(e,k){return'<div class="ex" lang="en">'+esc(e.s)+'<small>'+esc(e.src)+' · <button class="lk" data-cp="'+id+':'+k+'">kopyala</button></small></div>';}).join("")+(x.alts&&x.alts.length?'<div class="cell"><b>Alternatifler</b>'+x.alts.map(esc).join(" · ")+'</div>':'')+'</div></div>';}).join("")||'<div class="empty">Eşleşen ifade yok.</div>';
-  $("bhint").innerHTML=B.list.length+" ifade · "+srcLine(B,"baglam")+(B.zn?'<br>Zotero\'dan '+B.zn+' yeni cümle eklendi; Türkçe anlamları Bağlam\'ı bir kere açınca gelir.':'');
+  $("bhint").innerHTML=(L.length<B.list.length?L.length+" / ":"")+B.list.length+" ifade · "+srcLine(B,"baglam")+(B.zn?'<br>Zotero\'dan '+B.zn+' yeni cümle eklendi; Türkçe anlamları Bağlam\'ı bir kere açınca gelir.':'');
 }
 /* --- Dal görünümü --- */
 function proj(){if(!A)return null;return A.projects.find(function(p){return p.id===UI.pj;})||A.projects.find(function(p){return p.id===A.cur;})||A.projects[0];}
