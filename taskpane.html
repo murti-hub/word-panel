@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="63",ALEV_OFF=false;
+var ALEV_VER="64",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -318,7 +318,7 @@ function poll(){
     .then(function(){running=false;$("err").style.display="none";$("st2").textContent="Yazdıklarını izliyor · metin hiçbir yere gönderilmez";},function(e){running=false;$("st2").textContent="Belge okunamadı";});
 }
 function docKey(){var u="";try{u=Office.context.document.url||"";}catch(e){}u=decodeURIComponent(String(u).split(/[\\/]/).pop()||"").replace(/\.docx?$/i,"");return u||"belge";}
-function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){var n=wc(b.text);$("dw").textContent=n.toLocaleString("tr-TR");
+function docCount(){S.dcAt=Date.now();Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){var n=wc(b.text);$("dw").textContent=n.toLocaleString("tr-TR");
   if(n>0){S.tot=S.tot||{};var k=docKey(),t=S.tot[k]=S.tot[k]||{};t[day()]=n;save();hist();docPages(k);}});}).catch(function(){});}
 /* sayfa sayısı (belgenin son sayfası) + Yazı Hedefi için Drive'a günlük özet */
 function docPages(k){try{if(!Office.context.requirements.isSetSupported("WordApiDesktop","1.2")){hedefPush();return;}}catch(e){hedefPush();return;}
@@ -326,8 +326,11 @@ function docPages(k){try{if(!Office.context.requirements.isSetSupported("WordApi
 function hedefPush(force){var g=window.__G;if(!g||!g.ok()||!g.canWrite()||!g.put)return;var now=Date.now();if(!force&&S.hpAt&&now-S.hpAt<600000)return;
   var cut=new Date(now-400*864e5).toISOString().slice(0,10),docs={};
   Object.keys(S.tot||{}).forEach(function(k){var w={},p={},tw=S.tot[k]||{},tp=(S.pg||{})[k]||{};Object.keys(tw).forEach(function(d){if(d>=cut)w[d]=tw[d];});Object.keys(tp).forEach(function(d){if(d>=cut)p[d]=tp[d];});if(Object.keys(w).length)docs[k]={w:w,p:p};});
-  var sig=JSON.stringify(docs);if(sig===S.hpSig)return;S.hpAt=now;save();
-  g.put("alev-hedef.json",{v:1,at:new Date(now).toISOString(),docs:docs}).then(function(){S.hpSig=sig;save();}).catch(function(){S.hpAt=0;save();});}
+  if(!Object.keys(docs).length)return;var sig=JSON.stringify(docs);if(sig===S.hpSig&&S.hpOk){S.hpOk=now;return;}S.hpAt=now;save();
+  g.put("alev-hedef.json",{v:1,at:new Date(now).toISOString(),docs:docs}).then(function(){S.hpSig=sig;S.hpOk=now;S.hpErr="";save();hpMark("✓");}).catch(function(e){S.hpAt=0;S.hpErr=String((e&&e.code)||e||"hata");save();hpMark("✗ "+S.hpErr);});}
+function hpMark(t){var v=$("verl");if(v)v.textContent="s"+ALEV_VER+" · hedef "+t;}
+/* Drive bağlanınca ve sonra 15 dakikada bir, hangi sekme açık olursa olsun Yazı Hedefi'ne gönder */
+setInterval(function(){var g=window.__G;if(!g||!g.ok())return;if(!g.canWrite()){hpMark("✗ Drive yazma izni yok");return;}var now=Date.now();if(S.hpOk&&now-S.hpOk<15*60000)return;if(now-(S.dcAt||0)>15*60000)docCount();else hedefPush(true);},60000);
 var HM="w",HR=30;
 function loadZip(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";sc.onload=function(){ok(window.JSZip);};sc.onerror=function(){no(new Error("JSZip yüklenemedi"));};document.head.appendChild(sc);});}
 function xmlWords(x){x=x.replace(/<w:delText[^>]*>[\s\S]*?<\/w:delText>/g,"").replace(/<w:footnoteReference[^>]*\/>/g,"").replace(/<(w:p|text:p|text:h)[ >][\s\S]*?<\/\1>/g,function(m){return m+"\n";}).replace(/<w:tab\/>|<text:s[^>]*\/>|<text:tab\/>|<w:br\/>/g," ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'");return wc(x);}
