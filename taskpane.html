@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="62",ALEV_OFF=false;
+var ALEV_VER="63",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -319,7 +319,15 @@ function poll(){
 }
 function docKey(){var u="";try{u=Office.context.document.url||"";}catch(e){}u=decodeURIComponent(String(u).split(/[\\/]/).pop()||"").replace(/\.docx?$/i,"");return u||"belge";}
 function docCount(){Word.run(function(ctx){var b=ctx.document.body;b.load("text");return ctx.sync().then(function(){var n=wc(b.text);$("dw").textContent=n.toLocaleString("tr-TR");
-  if(n>0){S.tot=S.tot||{};var k=docKey(),t=S.tot[k]=S.tot[k]||{};t[day()]=n;save();hist();}});}).catch(function(){});}
+  if(n>0){S.tot=S.tot||{};var k=docKey(),t=S.tot[k]=S.tot[k]||{};t[day()]=n;save();hist();docPages(k);}});}).catch(function(){});}
+/* sayfa sayısı (belgenin son sayfası) + Yazı Hedefi için Drive'a günlük özet */
+function docPages(k){try{if(!Office.context.requirements.isSetSupported("WordApiDesktop","1.2")){hedefPush();return;}}catch(e){hedefPush();return;}
+  Word.run(function(ctx){var pg=ctx.document.body.getRange("End").pages;pg.load("items/index");return ctx.sync().then(function(){var p=pg.items.length?pg.items[pg.items.length-1].index:0;if(p>0){S.pg=S.pg||{};var q=S.pg[k]=S.pg[k]||{};q[day()]=p;save();}});}).catch(function(){}).then(hedefPush);}
+function hedefPush(force){var g=window.__G;if(!g||!g.ok()||!g.canWrite()||!g.put)return;var now=Date.now();if(!force&&S.hpAt&&now-S.hpAt<600000)return;
+  var cut=new Date(now-400*864e5).toISOString().slice(0,10),docs={};
+  Object.keys(S.tot||{}).forEach(function(k){var w={},p={},tw=S.tot[k]||{},tp=(S.pg||{})[k]||{};Object.keys(tw).forEach(function(d){if(d>=cut)w[d]=tw[d];});Object.keys(tp).forEach(function(d){if(d>=cut)p[d]=tp[d];});if(Object.keys(w).length)docs[k]={w:w,p:p};});
+  var sig=JSON.stringify(docs);if(sig===S.hpSig)return;S.hpAt=now;save();
+  g.put("alev-hedef.json",{v:1,at:new Date(now).toISOString(),docs:docs}).then(function(){S.hpSig=sig;save();}).catch(function(){S.hpAt=0;save();});}
 var HM="w",HR=30;
 function loadZip(){if(window.JSZip)return Promise.resolve(window.JSZip);return new Promise(function(ok,no){var sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";sc.onload=function(){ok(window.JSZip);};sc.onerror=function(){no(new Error("JSZip yüklenemedi"));};document.head.appendChild(sc);});}
 function xmlWords(x){x=x.replace(/<w:delText[^>]*>[\s\S]*?<\/w:delText>/g,"").replace(/<w:footnoteReference[^>]*\/>/g,"").replace(/<(w:p|text:p|text:h)[ >][\s\S]*?<\/\1>/g,function(m){return m+"\n";}).replace(/<w:tab\/>|<text:s[^>]*\/>|<text:tab\/>|<w:br\/>/g," ").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'");return wc(x);}
@@ -672,6 +680,12 @@ var G=(function(){
   function upload(name,obj){return bfolder().then(function(f){var meta={name:name,mimeType:"application/json"};if(f)meta.parents=[f];var bd="alev"+Date.now();
     var body="--"+bd+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)+"\r\n--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(obj)+"\r\n--"+bd+"--";
     return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{Authorization:"Bearer "+tok.t,"Content-Type":"multipart/related; boundary="+bd},body:body}).then(function(r){if(!r.ok)throw {code:r.status};return r.json();});});}
+  var PUT={};
+  /* aynı adlı dosyayı her seferinde yeniden oluşturmak yerine yerinde güncelle */
+  function put(name,obj){var q=encodeURIComponent("name = '"+name+"' and trashed = false");
+    var idp=PUT[name]?Promise.resolve(PUT[name]):gget("https://www.googleapis.com/drive/v3/files?q="+q+"&pageSize=1&fields=files(id)").then(function(r){return r.json();}).then(function(j){return (j.files&&j.files[0]&&j.files[0].id)||null;});
+    return idp.then(function(id){if(!id)return upload(name,obj).then(function(j){PUT[name]=j.id;return j;});
+      return fetch("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(id)+"?uploadType=media&fields=id",{method:"PATCH",headers:{Authorization:"Bearer "+tok.t,"Content-Type":"application/json"},body:JSON.stringify(obj)}).then(function(r){if(r.status===404){delete PUT[name];return upload(name,obj).then(function(j){PUT[name]=j.id;return j;});}if(!r.ok)throw {code:r.status};PUT[name]=id;return r.json();});});}
   var IMG={};
   /* küçük resim: fotoğrafı 480 piksele küçültüp sakla, büyük hali bellekte tutma */
   function shrink(b,w){return new Promise(function(res){var u=URL.createObjectURL(b),im=new Image();im.onload=function(){try{var k=Math.min(1,w/(im.naturalWidth||w)),c=document.createElement("canvas");c.width=Math.round((im.naturalWidth||w)*k);c.height=Math.round((im.naturalHeight||w)*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);im.src="";c.toBlob(function(sb){c.width=c.height=0;res(sb?URL.createObjectURL(sb):URL.createObjectURL(b));},"image/jpeg",0.82);}catch(e){res(u);}};im.onerror=function(){res(u);};im.src=u;});}
@@ -679,7 +693,7 @@ var G=(function(){
   var FULL=null;function full(id){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}return gget("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media").then(function(r){return r.blob();}).then(function(b){return shrink(b,1600);}).then(function(u){FULL=u;return u;});}
   function dropFull(){if(FULL){URL.revokeObjectURL(FULL);FULL=null;}}
   function getf(name){var q=encodeURIComponent("name = '"+name+"' and trashed = false");return gget("https://www.googleapis.com/drive/v3/files?q="+q+"&pageSize=1&fields=files(id)").then(function(r){return r.json();}).then(function(j){var f=j.files&&j.files[0];if(!f)return null;return gget("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media").then(function(r){return r.json();});});}
-  return {gget:function(u){return gget(u);},ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
+  return {gget:function(u){return gget(u);},ok:ok,get:getf,full:full,dropFull:dropFull,poke:poke,whyTxt:whyTxt,connect:connect,sync:sync,img:img,canWrite:canWrite,upload:upload,put:put,status:function(){return status;},out:function(){tok=null;save();seen={};gbar();}};
 })();
 window.__G=G;
 function gbar(){var b=$("gbar");if(UI.v==="alev"||UI.v==="ic"||UI.v==="kp"){b.classList.add("hide");return;}b.classList.remove("hide");
