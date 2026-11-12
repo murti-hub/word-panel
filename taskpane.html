@@ -6,7 +6,7 @@
 <title>Alev</title>
 <script>
 /* Word paneli eski sürümü önbellekte tutmasın: sürüm farklıysa yeni adresle yeniden yükle */
-var ALEV_VER="66",ALEV_OFF=false;
+var ALEV_VER="67",ALEV_OFF=false;
 (function(){try{fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():"";}).then(function(v){v=String(v||"").trim();
   if(v&&v!==ALEV_VER&&String(location.search).indexOf("v="+encodeURIComponent(v))<0){location.replace(location.pathname+"?v="+encodeURIComponent(v)+"&t="+Date.now());}}).catch(function(){});}catch(e){}})();
 </script>
@@ -492,10 +492,10 @@ function refsOf(P,ids,rows){var M={},ord=[];
   ids.forEach(function(id){var x=nodeOf(P,id);if(!x)return;(x.q||[]).forEach(function(q){var m=String(q.cite||"").replace(/^\(/,"").match(/^(.+?),\s*(\d{4}[a-z]?|t\.y\.|n\.d\.)/);if(!m)return;add(key(m[1],m[2]),{a:m[1].trim(),y:m[2],t:"",q:1},id);});});
   return ord.map(function(k){return M[k];}).sort(function(a,b){return String(a.a).localeCompare(String(b.a),"tr")||String(a.y).localeCompare(String(b.y));});}
 function refsBox(P,n,ids,rows){var RF=refsOf(P,ids,rows);
-  var h='<div class="row" style="margin:6px 0 2px"><button class="btn'+(refsOpen?' pri':'')+'" data-refs="1" title="Bu dalda ve alt dallarında geçen bütün kaynaklar">📚 Referanslar ('+RF.length+') '+(refsOpen?'▴':'▾')+'</button></div>';
+  var h='<div class="row" style="margin:6px 0 2px"><button class="btn'+(refsOpen?' pri':'')+'" data-refs="1" title="Projenin bütün dallarında geçen kaynaklar ve hangi dalda oldukları">📚 Tüm referanslar ('+RF.length+') '+(refsOpen?'▴':'▾')+'</button></div>';
   if(!refsOpen)return h;
-  if(!RF.length)return h+'<div class="hint" style="margin:2px 0 8px">Bu dalda ve alt dallarında kaynak yok.</div>';
-  return h+'<div class="note" style="font-family:inherit;margin:4px 0 8px;padding:2px 8px">'+RF.map(function(r,i){return'<div style="padding:6px 0;'+(i?'border-top:1px solid var(--line)':'')+'"><b style="font-size:13px">'+esc(r.a)+(r.y?' ('+esc(r.y)+')':'')+'</b>'+(r.nq?' <span class="hint" style="margin:0;font-size:11px">· '+r.nq+' alıntı</span>':'')+(r.t?'<div class="fn" lang="en" style="font-size:12px;display:block">'+esc(r.t.length>110?r.t.slice(0,109)+"…":r.t)+'</div>':'')+(r.br.length?'<div class="kids" style="margin-top:4px">'+r.br.map(function(b){var x=nodeOf(P,b);return x?'<button data-go="'+esc(b)+'" title="'+esc(x.path?x.path+" › "+x.t:x.t)+'">'+(b===n.id?'● bu dal':'↳ '+esc(x.t.length>40?x.t.slice(0,39)+"…":x.t))+'</button>':'';}).join("")+'</div>':'')+'</div>';}).join("")+'</div>';}
+  if(!RF.length)return h+'<div class="hint" style="margin:2px 0 8px">Bu projede henüz kaynak yok.</div>';
+  return h+'<div class="note" style="font-family:inherit;margin:4px 0 8px;padding:2px 8px">'+RF.map(function(r,i){return'<div style="padding:6px 0;'+(i?'border-top:1px solid var(--line)':'')+'"><b style="font-size:13px">'+esc(r.a)+(r.y?' ('+esc(r.y)+')':'')+'</b>'+(r.nq?' <span class="hint" style="margin:0;font-size:11px">· '+r.nq+' alıntı</span>':'')+(r.t?'<div class="fn" lang="en" style="font-size:12px;display:block">'+esc(r.t.length>110?r.t.slice(0,109)+"…":r.t)+'</div>':'')+(r.br.length?'<div class="kids" style="margin-top:4px">'+r.br.map(function(b){var x=nodeOf(P,b);return x?'<button data-go="'+esc(b)+'" title="'+esc(x.path?x.path+" › "+x.t:x.t)+'">'+(b===n.id?'● ':'')+esc(x.t.length>40?x.t.slice(0,39)+"…":x.t)+'</button>':'';}).join("")+'</div>':'')+'</div>';}).join("")+'</div>';}
 function cite(a,y,extra){a=String(a||"").replace(/\bvd\.?$/,"et al.").replace(/\s+ve\s+/," & ");return"("+a+(y?", "+y:"")+(extra?", "+extra:"")+")";}
 function qCite(c){c=String(c||"").replace(/,\s*s\.\s*/,", p. ");return c?"("+c.replace(/\bvd\.?/,"et al.")+")":"";}
 var DH=[];
@@ -512,7 +512,7 @@ function renderD(msg){var el=$("v-dal");if(!A){el.innerHTML=loadBox("dal");retur
   var par=P.nodes.find(function(x){return (x.k||[]).indexOf(n.id)>=0;});
   if(DH.length||par)h+='<div class="row" style="margin:2px 0 6px">'+(DH.length?'<button class="btn" data-back="1" title="Bir önceki baktığın dal">← Geri</button>':'')+(par?'<button class="btn" data-go="'+esc(par.id)+'" title="Bir üst dal" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↑ '+esc(par.t.length>28?par.t.slice(0,27)+"…":par.t)+'</button>':'')+'</div>';
   h+='<div class="path">'+esc(n.path)+'</div><div style="font:700 16px Georgia,serif">'+esc(n.t)+'</div>';
-  h+=refsBox(P,n,ids,rows);
+  h+=refsBox(P,n,P.nodes.map(function(x){return x.id;}),P.rows.concat(PEND.filter(function(x){return x.pj===P.id;}).map(function(x){return{a:x.author,y:x.year,t:x.title,br:[x.br],pend:1};})));
   h+='<div class="row" style="margin:6px 0 2px;gap:6px"><button class="btn" id="wMark" title="İmlecin olduğu yere ⚠️ koy: sonra bakacağın yer (kaynak, argüman)">⚠️ İşaret koy</button><button class="btn" id="wPrev" title="Önceki ⚠️">↑</button><button class="btn" id="wNext" title="Sonraki ⚠️">↓ Sonraki ⚠️</button><span class="hint" id="wInfo" style="margin:0"></span></div>';
   h+=zinBox(n);
   if(n.note)h+='<div class="sec">Not</div><div class="note">'+esc(n.note)+'</div>';
